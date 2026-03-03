@@ -8,10 +8,11 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.sql.functions import current_date
 from src.agents.sub_writing_agent.writing_state_models import WritingState
 from src.core.state_models import State
-from src.agents.sub_writing_agent import writing_director_agent, parallel_writing_node
+# ✅ 修复：导入具体的函数，而不是模块
 from src.agents.sub_writing_agent.writing_director_agent import writing_director_node
-from src.agents.sub_writing_agent.writing_agent import section_writing_node
-from src.agents.sub_writing_agent.retrieval_agent import retrieval_node
+from src.agents.sub_writing_agent.parallel_writing_node import parallel__writing_node
+# from src.agents.sub_writing_agent.writing_agent import section_writing_node
+# from src.agents.sub_writing_agent.retrieval_agent import retrieval_node
 from src.core.state_models import ExecutionState
 from src.core.state_models import BackToFrontData
 from src.utils.tool_utils import handlerChunk
@@ -28,7 +29,7 @@ class WritingWorkflow:
 
         # 添加节点
         builder.add_node("writing_director_node", writing_director_node)
-        builder.add_node("parallel_writing_node", parallel_writing_node)
+        builder.add_node("parallel_writing_node", parallel__writing_node)  # ✅ 使用正确的函数名
 
         # 设置入口点
         builder.set_entry_point("writing_director_node")

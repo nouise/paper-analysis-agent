@@ -16,7 +16,7 @@ class PaperSearcher:
     
     async def search_papers(self, 
                       querys: List[str], 
-                      max_results: int = 50, 
+                      max_results: int = 5, 
                       sort_by: arxiv.SortCriterion = arxiv.SortCriterion.Relevance, 
                       sort_order: arxiv.SortOrder = arxiv.SortOrder.Descending, 
                       start_date: Optional[Union[str, datetime]] = None, 
@@ -42,17 +42,25 @@ class PaperSearcher:
             for query in querys:
                 search_query += "all:%22"+query+"%22 OR "
             search_query = search_query[:-4]
-            # 添加日期范围过滤
+            
+            # 添加日期范围过滤（重要：需要括号确保日期过滤应用到所有查询词）
             if start_date or end_date:
                 start_date_str = self._format_date(start_date) if start_date else "190001010000"
                 end_date_str = self._format_date(end_date) if end_date else datetime.now().strftime("%Y%m%d2359")
                 date_filter = f"submittedDate:[{start_date_str} TO {end_date_str}]"
-                search_query = f"{search_query} AND {date_filter}"
+                # 关键修复：用括号包裹整个关键词查询，确保日期过滤应用到所有词
+                search_query = f"({search_query}) AND {date_filter}"
+                
+                print(f"\n📆 arXiv 日期过滤:")
+                print(f"  - 原始 start_date: {start_date}")
+                print(f"  - 原始 end_date: {end_date}")
+                print(f"  - 格式化后 start: {start_date_str}")
+                print(f"  - 格式化后 end: {end_date_str}")
+                print(f"  - 日期过滤器: {date_filter}")
 
             logger.info(f"开始搜索论文: query='{search_query}', max_results={max_results}, sort_by={sort_by}")
-
-
-            logger.info(f"论文搜索查询条件: {search_query}")
+            print(f"\n🔍 最终 arXiv 查询语句:")
+            print(f"  {search_query}\n")
 
             # 创建搜索对象
             try:

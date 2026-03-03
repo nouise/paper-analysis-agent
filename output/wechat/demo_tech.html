@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信公众号文章</title>
+    <style>
+        :root {
+            
+  --primary-color: #7c3aed;        /* 主色调：紫色 */
+  --secondary-color: #3b82f6;      /* 辅助色：蓝色 */
+  --text-color: #333333;           /* 正文颜色 */
+  --text-light: #666666;           /* 浅色文字 */
+  --background: #ffffff;           /* 背景色 */
+  --code-bg: #282c34;              /* 代码块背景 */
+  --code-color: #abb2bf;           /* 代码文字 */
+  --quote-border: #7c3aed;         /* 引用边框 */
+  --quote-bg: #f8f5ff;             /* 引用背景 */
+  --border-radius: 8px;            /* 圆角半径 */
+
+        }
+
+        /* 基础样式 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #333;
+            background: #fff;
+            padding: 20px;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- ⚠️ 标题请在微信公众号编辑器中单独填写，HTML 中已自动移除 H1 标题 -->
+    <h2 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 28px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid transparent; background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%); background-size: 100% 2px; background-position: 0 100%; background-repeat: no-repeat; line-height: 1.4">引言</h2>
+<p style="margin: 18px 0; text-align: justify; word-break: break-word">人工智能（Artificial Intelligence, AI）正在改变我们的世界。</p>
+<h2 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 28px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid transparent; background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%); background-size: 100% 2px; background-position: 0 100%; background-repeat: no-repeat; line-height: 1.4">核心技术</h2>
+<h3 style="font-size: 20px; font-weight: 600; color: #1a1a1a; margin: 24px 0 16px 0; padding-left: 12px; border-left: 3px solid #7c3aed; line-height: 1.4">1. 机器学习</h3>
+<p style="margin: 18px 0; text-align: justify; word-break: break-word">机器学习是 AI 的核心技术，主要包括：</p>
+<ul style="margin: 16px 0; padding-left: 28px">
+<li style="margin: 8px 0; line-height: 1.8; list-style-type: none; position: relative"><strong style="font-weight: 600; color: #1a1a1a">监督学习</strong>：从标注数据中学习</li>
+<li style="margin: 8px 0; line-height: 1.8; list-style-type: none; position: relative"><strong style="font-weight: 600; color: #1a1a1a">无监督学习</strong>：发现数据中的模式</li>
+<li style="margin: 8px 0; line-height: 1.8; list-style-type: none; position: relative"><strong style="font-weight: 600; color: #1a1a1a">强化学习</strong>：通过试错学习最优策略</li>
+</ul>
+<h3 style="font-size: 20px; font-weight: 600; color: #1a1a1a; margin: 24px 0 16px 0; padding-left: 12px; border-left: 3px solid #7c3aed; line-height: 1.4">2. 深度学习</h3>
+<p style="margin: 18px 0; text-align: justify; word-break: break-word">深度学习使用多层神经网络进行特征学习。</p>
+<div class="codehilite"><pre style="background: #282c34; color: #abb2bf; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 20px 0; line-height: 1.6; position: relative"><span></span><code style='background: #f5f5f5; color: #e83e8c; padding: 2px 6px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.9em; font-weight: 500'><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+
+<span class="k">class</span> <span class="nc">NeuralNetwork</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">784</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</code></pre></div>
+<h2 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 28px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid transparent; background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%); background-size: 100% 2px; background-position: 0 100%; background-repeat: no-repeat; line-height: 1.4">应用领域</h2>
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; overflow-x: auto; display: block">
+<thead style="background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%); color: #fff">
+<tr>
+<th style="padding: 12px 16px; text-align: left; font-weight: 600; border: 1px solid #dee2e6">领域</th>
+<th style="padding: 12px 16px; text-align: left; font-weight: 600; border: 1px solid #dee2e6">应用</th>
+<th style="padding: 12px 16px; text-align: left; font-weight: 600; border: 1px solid #dee2e6">进展</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">计算机视觉</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">图像识别、目标检测</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">成熟</td>
+</tr>
+<tr>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">自然语言处理</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">机器翻译、文本生成</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">快速发展</td>
+</tr>
+<tr>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">语音识别</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">语音助手、实时翻译</td>
+<td style="padding: 12px 16px; border: 1px solid #dee2e6">商业化</td>
+</tr>
+</tbody>
+</table>
+<h2 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 28px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid transparent; background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%); background-size: 100% 2px; background-position: 0 100%; background-repeat: no-repeat; line-height: 1.4">未来展望</h2>
+<blockquote style="margin: 20px 0; padding: 16px 20px; background: #f8f5ff; border-left: 4px solid #7c3aed; border-radius: 0 8px 8px 0; color: #666666; font-style: italic">
+<p style="margin: 18px 0; text-align: justify; word-break: break-word">AI 技术将继续快速发展，为人类社会带来更多价值。</p>
+</blockquote>
+<p style="margin: 18px 0; text-align: justify; word-break: break-word"><strong style="font-weight: 600; color: #1a1a1a">关键趋势</strong>：<br/>
+1. 多模态学习<br/>
+2. 可解释 AI<br/>
+3. 边缘计算</p>
+<h2 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 28px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid transparent; background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%); background-size: 100% 2px; background-position: 0 100%; background-repeat: no-repeat; line-height: 1.4">结论</h2>
+<p style="margin: 18px 0; text-align: justify; word-break: break-word">人工智能正处于快速发展阶段，未来充满机遇与挑战。</p>
+</body>
+</html>

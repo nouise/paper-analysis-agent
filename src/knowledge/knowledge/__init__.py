@@ -10,7 +10,12 @@ KnowledgeBaseFactory.register("chroma", ChromaKB, {"description": "基于 Chroma
 
 
 # 创建知识库管理器
-work_dir = os.path.join(config.get("SAVE_DIR"), "knowledge_base_data")
+# 使用相对路径，避免硬编码绝对路径
+save_dir = config.get("SAVE_DIR", None)
+if save_dir is None or not os.path.isabs(save_dir):
+    # 默认放在项目根目录下的 data 目录
+    save_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data")
+work_dir = os.path.join(save_dir, "knowledge_base_data")
 knowledge_base = KnowledgeBaseManager(work_dir)
 
 

@@ -9,7 +9,7 @@ import json
 from autogen_agentchat.agents import AssistantAgent
 from src.core.model_client import create_default_client, create_subanalyse_cluster_model_client, create_cluster_embedding_client
 from src.core.prompts import clustering_agent_prompt
-from src.agents.reading_agent import ExtractedPaperData, ExtractedPapersData
+from src.core.state_models import ExtractedPaperData, ExtractedPapersData
 import numpy as np
 from typing import List, Dict, Any, Tuple, Union
 from sklearn.cluster import KMeans

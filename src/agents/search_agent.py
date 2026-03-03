@@ -23,7 +23,7 @@ model_client = create_search_model_client()
 # 创建一个查询条件类，包括查询内容、主题、时间范围等信息，用于存储用户的查询需求
 class SearchQuery(BaseModel):
     """查询条件类，存储用户查询需求"""
-    querys: List[str] = Field(default=None, description="查询条件列表")
+    querys: List[str] = Field(description="查询条件列表，至少包含1个查询词")
     start_date: Optional[str] = Field(default=None, description="开始时间, 格式: YYYY-MM-DD")
     end_date: Optional[str] = Field(default=None, description="结束时间, 格式: YYYY-MM-DD")
 
@@ -67,23 +67,54 @@ async def search_node(state: State) -> State:
         请根据用户查询需求，生成检索查询条件。
         用户查询需求：{current_state.user_request}
         """
+        print("prompt:", prompt)
+        # exit()
         response = await search_agent.run(task = prompt)
-        search_query = response.messages[-1].content
-        await state_queue.put(BackToFrontData(step=ExecutionState.SEARCHING,state="user_review",data=f"{search_query}"))
         
-        result = await userProxyAgent.on_messages(
-            [TextMessage(content="请人工审核：查询条件是否符合？", source="AI")],
-            cancellation_token=CancellationToken()
-        )
-        search_query = parse_search_query(result.content)
+        # 打印大模型返回的详细信息
+        print("\n" + "="*60)
+        print("🤖 大模型返回结果:")
+        print("="*60)
+        print(f"消息数量: {len(response.messages)}")
+        print(f"最后一条消息类型: {type(response.messages[-1])}")
+        print(f"最后一条消息内容: {response.messages[-1].content}")
+        
+        search_query = response.messages[-1].content
+        
+        # 打印解析后的 SearchQuery 对象
+        print("\n📋 解析后的 SearchQuery 对象:")
+        print(f"  - querys: {search_query.querys}")
+        print(f"  - start_date: {search_query.start_date}")
+        print(f"  - end_date: {search_query.end_date}")
+        print("="*60 + "\n")
+        
+        # 终端运行时跳过用户审核，直接使用 AI 生成的查询条件
+        # 如需启用人工审核，取消下面的注释
+        # await state_queue.put(BackToFrontData(step=ExecutionState.SEARCHING,state="user_review",data=f"{search_query}"))
+        # result = await userProxyAgent.on_messages(
+        #     [TextMessage(content="请人工审核：查询条件是否符合？", source="AI")],
+        #     cancellation_token=CancellationToken()
+        # )
+        # search_query = parse_search_query(result.content)
+        
+        # 打印生成的查询条件供参考
+        logger.info(f"生成的查询条件: querys={search_query.querys}, start_date={search_query.start_date}, end_date={search_query.end_date}")
+        print(f"✓ 自动审核通过，查询条件: {search_query.querys}")
+        
+        # 打印时间范围
+        print(f"\n📅 时间范围:")
+        print(f"  - start_date: {search_query.start_date}")
+        print(f"  - end_date: {search_query.end_date}")
 
         # 调用检索服务
         paper_searcher = PaperSearcher()
+        print(f"\n🔍 开始调用 arXiv API...")
         results = await paper_searcher.search_papers(
             querys = search_query.querys,
             start_date = search_query.start_date,
             end_date = search_query.end_date,
         )
+        print(f"✅ API 调用完成，找到 {len(results)} 篇论文")
         # [{'paper_id': '2411.11607v2', 'title': 'Performance evaluation of a ROS2 based Automated Driving System', 'authors': [...], 'summary': 'Automated driving is currently a prominent area of scientific work. In the\nfuture, highly automated driving and new Advanced Driver Assistance Systems\nwill become reality. While Advanced Driver Assistance Systems and automated\ndriving functions for certain domains are already commercially available,\nubiquitous automated driving in complex scenarios remains a subject of ongoing\nresearch. Contrarily to single-purpose Electronic Control Units, the software\nfor automated driving is often executed on high performance PCs. The Robot\nOperating System 2 (ROS2) is commonly used to connect components in an\nautomated driving system. Due to the time critical nature of automated driving\nsystems, the performance of the framework is especially important. In this\npaper, a thorough performance evaluation of ROS2 is conducted, both in terms of\ntimeliness and error rate. The results show that ROS2 is a suitable framework\nfor automated driving systems.', 'published': 2024, 'published_date': '2024-11-18T14:29:22+00:00', 'url': 'http://arxiv.org/abs/2411.11607v2', 'pdf_url': 'http://arxiv.org/pdf/2411.11607v2', 'primary_category': 'cs.RO', 'categories': [...], 'doi': '10.5220/0012556800003702'}, {'paper_id': '2307.06258v1', 'title': 'Connected Dependability Cage Approach for Safe Automated Driving', 'authors': [...], 'summary': "Automated driving systems can be helpful in a wide range of societal\nchallenges, e.g., mobility-on-demand and transportation logistics for last-mile\ndelivery, by aiding the vehicle driver or taking over the responsibility for\nthe dynamic driving task partially or completely. Ensuring the safety of\nautomated driving systems is no trivial task, even more so for those systems of\nSAE Level 3 or above. To achieve this, mechanisms are needed that can\ncontinuously monitor the system's operating conditions, also denoted as the\nsystem's operational design domain. This paper presents a safety concept for\nautomated driving systems which uses a combination of onboard runtime\nmonitoring via connected dependability cage and off-board runtime monitoring\nvia a remote command control center, to continuously monitor the system's ODD.\nOn one side, the connected dependability cage fulfills a double functionality:\n(1) to monitor continuously the operational design domain of the automated\ndriving system, and (2) to transfer the responsibility in a smooth and safe\nmanner between the automated driving system and the off-board remote safety\ndriver, who is present in the remote command control center. On the other side,\nthe remote command control center enables the remote safety driver the\nmonitoring and takeover of the vehicle's control. We evaluate our safety\nconcept for automated driving systems in a lab environment and on a test field\ntrack and report on results and lessons learned.", 'published': 2023, 'published_date': '2023-07-12T15:55:48+00:00', 'url': 'http://arxiv.org/abs/2307.06258v1', 'pdf_url': 'http://arxiv.org/pdf/2307.06258v1', 'primary_category': 'cs.RO', 'categories': [...], 'doi': None}]
         current_state.search_results = results
         if len(results) > 0:

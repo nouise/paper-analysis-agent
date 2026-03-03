@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "Paper-Agent"
+name = "paper-analysis-agent"
 version = "0.1.0"
-description = ""
-authors = ["Tswoen <15071340+tswoen@user.noreply.gitee.com>"]
+description = "AI-driven academic research report generation system"
+authors = ["nouise"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -32,6 +32,9 @@ pandas = "^2.3.3"
 beautifulsoup4 = "^4.14.3"
 python-multipart = "^0.0.21"
 volcengine-python-sdk = {extras = ["ark"], version = "^5.0.6"}
+pytest = "^9.0.2"
+markdown = "^3.10.2"
+cssutils = "^2.11.1"
 
 
 

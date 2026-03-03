@@ -66,11 +66,16 @@ class ModelClient:
         )
         
         # 创建并返回客户端实例
+        # 设置超时时间：读取论文等复杂任务需要更长的超时时间
+        from httpx import Timeout
+        timeout = Timeout(300000.0, connect=60.0)  # 总超时5分钟，连接超时1分钟
+        
         return OpenAIChatCompletionClient(
             model=model,
             api_key=api_key,
             base_url=base_url,
-            model_info=model_info
+            model_info=model_info,
+            timeout=timeout
         )
 
     @staticmethod
@@ -102,23 +107,48 @@ class ModelClient:
         return client
 
 
+def _apply_thinking_mode(client: OpenAIChatCompletionClient, enable_thinking: bool) -> OpenAIChatCompletionClient:
+    """为客户端开启深度思考模式（通过 extra_body 注入 enable_thinking 参数）
+    
+    适用于支持思考模式的模型，如 Qwen3/Qwen3.5 系列。
+    开启后模型会先进行深度思考再给出回答，提升复杂任务的准确性。
+    
+    原理: autogen 的 OpenAIChatCompletionClient 内部调用 chat.completions.create(**create_args)，
+    我们将 extra_body 注入到 _create_args 中，它会被解包传递给 OpenAI SDK。
+    """
+    if enable_thinking:
+        # 注入 extra_body 到 create_args，这会在每次 API 调用时被传递
+        client._create_args["extra_body"] = {"enable_thinking": True}
+        logger.info(f"✅ 已开启深度思考模式 (enable_thinking=True)")
+    else:
+        # 显式关闭思考模式
+        client._create_args["extra_body"] = {"enable_thinking": False}
+    return client
+
+
 def create_model_client(client_type: str) -> OpenAIChatCompletionClient:
     try:
         model_config = config.get(client_type, {})
         provider = model_config.get("model-provider")
         model = model_config.get("model")
+        enable_thinking = model_config.get("enable_thinking", False)
 
-        # 检查是否配置了阅读模型
+        # 检查是否配置了模型
         if not provider or not model:
             logger.warning(f"警告：未配置{client_type}模型，使用默认模型代替")
             return create_default_client()
         
-        return ModelClient.create_client(
+        client = ModelClient.create_client(
                 provider=provider,
                 model=model
         )
+        
+        # 应用思考模式配置
+        client = _apply_thinking_mode(client, enable_thinking)
+        
+        return client
     except Exception as e:
-        print(f"创建阅读模型客户端失败: {e}，使用默认模型代替")
+        print(f"创建{client_type}模型客户端失败: {e}，使用默认模型代替")
         return create_default_client()
 
 def create_embedding_client(client_type: str) -> OpenAI:
@@ -145,11 +175,14 @@ def create_default_client() -> OpenAIChatCompletionClient:
     default_model_config = config.get("default-model", {})
     provider = default_model_config.get("model-provider", "siliconflow")
     model = default_model_config.get("model", "Qwen/Qwen3-32B")
-    
-    return ModelClient.create_client(
+    enable_thinking = default_model_config.get("enable_thinking", False)
+    print(f"使用默认模型配置: provider={provider}, model={model}, thinking={enable_thinking}")
+    client = ModelClient.create_client(
         provider=provider,
         model=model
     )
+    client = _apply_thinking_mode(client, enable_thinking)
+    return client
 
 def create_default_embedding_client() -> OpenAI:
     """创建默认的OpenAIEmbeddingClient实例，使用配置中指定的默认模型"""

@@ -15,7 +15,8 @@ import asyncio
 from starlette.routing import Route
 from src.utils.log_utils import setup_logger
 from src.utils.tool_utils import handlerChunk
-from src.agents.reading_agent import ExtractedPapersData,KeyMethodology,ExtractedPaperData
+# 从 state_models 导入模型定义，保持类型一致
+from src.core.state_models import ExtractedPapersData, ExtractedPaperData, KeyMethodology
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage,StructuredMessage
 from autogen_agentchat.base import Response
@@ -148,20 +149,83 @@ async def analyse_node(state: State) -> State:
         await state_queue.put(BackToFrontData(step=ExecutionState.ANALYZING,state="error",data=err_msg))
         return state
 
-def main():
-    """主函数"""
-    asyncio.run(analyse_node(state))
+async def main():
+    """主函数 - 用于测试和调试"""
+    from src.core.state_models import PaperAgentState, NodeError
+    
+    # 创建状态队列
+    state_queue = asyncio.Queue()
+    
+    # 构造测试用的提取数据
+    test_extracted_data = ExtractedPapersData(
+        papers=[
+            ExtractedPaperData(
+                paper_id="paper_001",  # state_models 中需要 paper_id
+                core_problem="如何提高深度学习模型在图像识别任务中的准确率和效率",
+                key_methodology=KeyMethodology(
+                    name="ResNet-50卷积神经网络",
+                    principle="使用残差连接解决深度网络退化问题",
+                    novelty="首次将残差学习应用于大规模图像分类任务"
+                ),
+                datasets_used=["ImageNet-1K (1.2M images)", "CIFAR-10"],
+                evaluation_metrics=["Top-1 Accuracy", "Top-5 Accuracy", "F1-Score"],
+                main_results="在ImageNet上Top-1准确率达到76.5%，比VGG-16提升3.2个百分点，训练速度提升40%",
+                limitations="模型参数量较大（25.6M），在移动设备上部署困难；对小目标检测效果有限",
+                contributions=[
+                    "提出了残差学习框架，解决了深度网络训练困难的问题",
+                    "在ImageNet数据集上取得了当时的最佳性能",
+                    "为后续深度网络设计提供了重要思路"
+                ]
+            ),
+            ExtractedPaperData(
+                paper_id="paper_002",
+                core_problem="如何让Transformer模型更好地理解自然语言的语义和上下文关系",
+                key_methodology=KeyMethodology(
+                    name="BERT预训练语言模型",
+                    principle="通过双向Transformer编码器和掩码语言模型进行预训练",
+                    novelty="首次提出双向预训练方法，同时考虑左右上下文信息"
+                ),
+                datasets_used=["BookCorpus (800M words)", "English Wikipedia (2.5B words)", "GLUE Benchmark"],
+                evaluation_metrics=["Accuracy", "F1-Score", "GLUE Score"],
+                main_results="在GLUE基准测试中获得80.5分，比GPT提升7.7分；在SQuAD 1.1问答任务上F1达到93.2%",
+                limitations="预训练成本高昂，需要大量计算资源；模型推理速度较慢，不适合实时应用",
+                contributions=[
+                    "提出了双向预训练方法，显著提升了语言理解能力",
+                    "在11个NLP任务上刷新了最佳记录",
+                    "开源了预训练模型，推动了NLP领域的发展"
+                ]
+            )
+        ]
+    )
+    
+    # 初始化状态
+    initial_state = PaperAgentState(
+        user_request="帮我写一篇关于人工智能的调研报告",
+        max_papers=2,
+        error=NodeError(),
+        config={},
+        extracted_data=test_extracted_data  # 添加测试数据
+    )
+    
+    state = {"state_queue": state_queue, "value": initial_state}
+    
+    # 运行分析节点
+    result_state = await analyse_node(state)
+    
+    # 打印结果
+    print("\n" + "="*50)
+    print("分析完成！")
+    print("="*50)
+    if result_state["value"].analyse_results:
+        print("\n分析结果:")
+        print(result_state["value"].analyse_results)
+    if result_state["value"].error.analyse_node_error:
+        print("\n错误信息:")
+        print(result_state["value"].error.analyse_node_error)
+    
+    return result_state
 
 if __name__ == "__main__":
-    pass
-    # from src.core.state_models import PaperAgentState,NodeError
-    # state_queue = asyncio.Queue()
-    # initial_state = PaperAgentState(
-    #         user_request="帮我写一篇关于人工智能的调研报告",
-    #         max_papers=2,
-    #         error=NodeError(),
-    #         config={}  # 可以传入各种配置
-    #     )
-    # state = {"state_queue": state_queue, "value": initial_state}
-    # analyse_agent = AnalyseAgent()
-    # main()
+    print("开始调试 AnalyseAgent 模块...")
+    print("-" * 50)
+    asyncio.run(main())

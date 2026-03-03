@@ -5,46 +5,100 @@ model-provider:
   - dashscope
   - ark
 
-# 项目默认使用的模型和嵌入模型配置
-# default-model:
-#   model-provider: siliconflow
-#   model: Qwen/Qwen3-32B
-default-model:
-  model-provider: ark
-  model: doubao-seed-1-6-thinking-250715
+# --- 核心修改：全部指向 dashscope ---
 
+# 默认模型：原 Doubao (Thinking) -> 替换为 qwen3.5-plus(旗舰版，逻辑能力强)
+default-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false  # 是否开启深度思考模式（适用于支持 thinking 的模型，如 qwen3/qwen3.5 系列）
+  # 或者使用: qwen3.5-plus (性价比高), qwen3-32b-instruct (如果你特意想要 32B 尺寸)
+
+# 默认嵌入模型：保持 text-embedding-v4
 default-embedding-model:
   model-provider: dashscope
   model: text-embedding-v4
   dimension: 1024
 
-# embedding-model:
-#   model-provider: siliconflow
-#   model: Qwen/Qwen3-Embedding-8B
-#   dimension: 1024
+# Embedding 别名配置 (保持一致)
 embedding-model:
   model-provider: dashscope
   model: text-embedding-v4
   dimension: 1024
 
-# 项目模块具体使用的模型和嵌入模型配置（可选）
+# --- 模块专用模型 ---
+
+# 搜索模型：用于理解查询意图和生成搜索策略
+search-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 阅读模型：建议使用长文本能力强的模型
 reading-model:
-  model-provider: siliconflow
-  model: Qwen/Qwen3-32B
+  model-provider: dashscope
+  model: qwen3.5-plus  # qwen3.5-plus 在长文总结和阅读方面表现非常均衡
+  enable_thinking: false
 
+# 分析子模块：主题聚类
+subanalyse-cluster-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 分析子模块：深度分析
+subanalyse-deep-analyse-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 分析子模块：全局分析
+subanalyse-global-analyse-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 写作子模块：写作主管
+subwriting-writing-director-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 写作子模块：具体写作
+subwriting-writing-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 写作子模块：检索
+subwriting-retrieval-model:
+  model-provider: dashscope
+  model: qwen3.5-plus
+  enable_thinking: false
+
+# 写作模型：建议使用逻辑和文笔好的旗舰模型
 writing-model:
-  model-provider: siliconflow
-  model: Qwen/Qwen3-32B
+  model-provider: dashscope
+  model: qwen3.5-plus  # 写作建议用最强的模型
+  enable_thinking: false
 
+# 报告生成模型：用于组装最终报告
+report-model:
+  model-provider: dashscope
+  model: qwen3.5-plus  # 使用旗舰模型生成最终报告
+  enable_thinking: false
+
+# 向量库专用 Embedding：统一使用 v4
 chroma-embedding-model:
-  model-provider: siliconflow
-  model: Qwen/Qwen3-Embedding-8B
+  model-provider: dashscope
+  model: text-embedding-v4
 
 cluster-embedding-model:
-  model-provider: siliconflow
-  model: Qwen/Qwen3-Embedding-8B
+  model-provider: dashscope
+  model: text-embedding-v4
 
-# 各个模型提供商的API密钥和基础URL
+# --- API 密钥配置 ---
+
 siliconflow:
   api_key: SILICONFLOW_API_KEY
   base_url: https://api.siliconflow.cn/v1

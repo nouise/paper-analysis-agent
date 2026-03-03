@@ -1,51 +1,34 @@
-import sys
-import os
+"""
+Paper-Agent 工作流编排器
+使用 LangGraph StateGraph 串联: search → reading → analyse → writing → report
+"""
 
-from sqlalchemy import Null
-from sqlalchemy.sql.functions import current_date
-# 将项目根目录添加到Python路径
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
-from typing import TypedDict, Annotated, Sequence
 from langgraph.graph import StateGraph, END, START
-from langgraph.graph.message import add_messages
-from src.core.state_models import PaperAgentState, ExecutionState,NodeError
-from src.agents.search_agent import search_node
-from src.agents.reading_agent import reading_node
-from src.agents.analyse_agent import analyse_node
-from src.agents.writing_agent import writing_node
-from src.agents.report_agent import report_node
-from typing import Dict, Any
-from src.core.state_models import BackToFrontData
-from src.core.state_models import State,ConfigSchema
+from src.core.state_models import PaperAgentState, ExecutionState, NodeError, BackToFrontData, State, ConfigSchema
 
+# 从新的 nodes 模块导入各节点
+from src.nodes.search import search_node
+from src.nodes.reading import reading_node
+from src.nodes.analyse import analyse_node
+from src.nodes.writing import writing_node
+from src.nodes.report import report_node
 
 import asyncio
 
-
-# class State(TypedDict):
-#     """LangGraph兼容的状态定义"""
-#     state_queue: Queue
-#     value: PaperAgentState
-
-# class ConfigSchema(TypedDict):
-#     """LangGraph兼容的配置定义"""
-#     state_queue: Queue
-#     value: Dict[str, Any]
 
 class PaperAgentOrchestrator:
     def __init__(self,state_queue):
         self.state_queue = state_queue
         self.graph = self._build_graph()
 
-    async def handle_error_node(self, state: State) -> str:
+    async def handle_error_node(self, state: State) -> State:
         """错误处理节点"""
         current_state = state["value"]
         current_state.current_step = ExecutionState.FAILED
         print(f"Workflow failed at {current_state.current_step}: {current_state.error}")
-        return {"value": current_state}
+        return {"state_queue": state["state_queue"], "value": current_state}
 
-    def condition_handler(self, state: State) -> bool:
+    def condition_handler(self, state: State) -> str:
         """条件处理函数"""
         # 如果state.get("error") is not None那么就返回到handle_error_node
         current_state = state["value"]
@@ -92,33 +75,37 @@ class PaperAgentOrchestrator:
     
 
     
-    async def run(self, user_request: str, max_papers: int = 50):
-        """执行完整工作流"""
+    async def run(self, user_request: str, max_papers: int = 5):
+        """执行完整工作流
+        
+        参数:
+            user_request: 用户查询需求
+            max_papers: 最大论文数量（默认50篇）
+                       - 可通过命令行参数 --max-papers 修改
+                       - 例如: --max-papers 10 表示最多搜索10篇论文
+        """
         # 初始化状态
         # await self.state_queue.put(BackToFrontData(step="start",state="processing",data=None))
-        print("Starting workflow...")
+        print(f"Starting workflow... (max_papers={max_papers})")
         initial_state = PaperAgentState(
             user_request=user_request,
             max_papers=max_papers,
             error=NodeError(),
             config={}  # 可以传入各种配置
         )
-
+        print("Initial state created.")
         # 运行图
         await self.graph.ainvoke({"state_queue": self.state_queue, "value": initial_state})
+        print("Workflow completed.")
         await self.state_queue.put(BackToFrontData(step=ExecutionState.FINISHED,state="finished",data=None))
 
     
-if __name__ == "__main__":
-    # from IPython.display import Image, display
 
-    # # Attempt to visualize the graph as a Mermaid diagram
-    # try:
-    #     display(Image(graph.get_graph().draw_mermaid_png()))
-    # except Exception:
-    #     # Handle cases where visualization fails (e.g., missing dependencies)
-    #     pass
-    orchestrator = PaperAgentOrchestrator()
-    orchestrator.run("帮我写一篇有关llm在无人驾驶方面的调研报告。")
+if __name__ == "__main__":
+    # 创建一个模拟队列
+    mock_queue = asyncio.Queue() 
+    orchestrator = PaperAgentOrchestrator(state_queue=mock_queue)
+    # 使用 asyncio.run 运行异步主函数
+    asyncio.run(orchestrator.run("测试Prompt"))
 
     

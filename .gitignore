@@ -78,12 +78,23 @@ yarn-error.log*
 build/
 dist/
 
-# 环境变量
+# 环境变量和敏感配置
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# 微信公众号配置（包含AppID和AppSecret）
+.wechat-publisher/
+**/config.json
+**/token_cache.json
+
+# API密钥和敏感配置文件
+**/secrets.yaml
+**/credentials.json
+**/*_secret.py
+**/*_credentials.py
 
 # 临时文件
 *.tmp
@@ -100,11 +111,13 @@ dist/
 *.dll
 *.so
 *.dylib
+
+# 运行时数据
+data/knowledge_base_data/chroma_data/
 data/knowledge_base_data/global_metadata.json
-data/knowledge_base_data/chroma_data/metadata_chroma.json
-data/knowledge_base_data/chroma_data/chromadb/c63cc355-56fc-4a3a-8df2-4c5d0c8c1423/data_level0.bin
-data/knowledge_base_data/chroma_data/chromadb/c63cc355-56fc-4a3a-8df2-4c5d0c8c1423/header.bin
-data/knowledge_base_data/chroma_data/chromadb/c63cc355-56fc-4a3a-8df2-4c5d0c8c1423/length.bin
-.trae/documents/左右分栏布局主界面实现.md
-data/knowledge_base_data/chroma_data/chromadb/c63cc355-56fc-4a3a-8df2-4c5d0c8c1423/link_lists.bin
-data/knowledge_base_data/chroma_data/kb_8f70a13918811436348933387ee5c158/uploads/测试_1bc5.txt
+output/reports/
+output/log/
+
+# IDE / 其他
+.trae/
+.claude/

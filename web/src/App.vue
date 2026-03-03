@@ -80,15 +80,28 @@
 		</div>
 	</div>
 
-	<!-- 最终报告部分 -->
+	<!-- 最终报告部分 - 可编辑 Markdown -->
     <div class="report-section" v-if="reportContent">
-      <h2>最终报告</h2>
-      <textarea 
-        readonly 
-        v-model="reportContent" 
-        rows="20"
+      <div class="report-header">
+        <h2>最终报告</h2>
+        <div class="report-actions">
+          <button class="btn-report-toggle" @click="reportEditing = !reportEditing" :class="{ active: reportEditing }">
+            {{ reportEditing ? '📖 预览' : '✏️ 编辑' }}
+          </button>
+          <button class="btn-report-save" v-if="reportEditing && reportModified" @click="saveCurrentReport">💾 保存</button>
+          <button class="btn-report-copy" @click="copyReport">📋 复制</button>
+        </div>
+      </div>
+      <!-- 编辑模式 -->
+      <textarea
+        v-if="reportEditing"
+        v-model="reportContent"
+        class="report-editor"
+        spellcheck="false"
+        @input="reportModified = true"
       ></textarea>
-      <button @click="copyReport">复制报告</button>
+      <!-- 预览模式 -->
+      <div v-else class="report-preview markdown-body" v-html="parseMarkdown(reportContent)"></div>
     </div>
     
     <!-- 知识库选择模态框 -->
@@ -120,6 +133,9 @@ const eventSource = ref(null)
 const isReviewing = ref(false)
 const showSelectModal = ref(false)
 const selectedDatabase = ref(null)
+const reportEditing = ref(false)
+const reportModified = ref(false)
+const reportFilename = ref('')
 
 const currentActiveStep = ref(null); // 使用 ref 确保响应式
 const activeSubSteps = ref(new Map()); // 追踪writing步骤的活跃子块（key为section_id）
@@ -141,8 +157,7 @@ const submitReviewInput = async () => {
     return;
   }
   try {
-    // const res = await fetch("/send_input", {
-    const res = await fetch("http://localhost:8000/send_input", {
+    const res = await fetch("/send_input", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ input: userReviewInput.value }),
@@ -170,6 +185,8 @@ const submitRequest = () => {
   isSubmitting.value = true
   steps.value = []
   reportContent.value = ''
+  reportEditing.value = false
+  reportModified.value = false
   
   // 初始化SSE连接
   eventSource.value = new EventSource(`/api/research?query=${encodeURIComponent(userInput.value)}`)
@@ -310,6 +327,14 @@ const submitRequest = () => {
     if (data) {
       currentActiveStep.value.content += data;
     }
+
+    // 如果是报告阶段完成，展示最终报告（可编辑markdown）
+    if (step === 'reporting' && data) {
+      reportContent.value = data;
+      reportEditing.value = false;
+      reportModified.value = false;
+    }
+
     currentActiveStep.value = null; // 清除活跃状态，等待下一阶段
     autoScroll();
   };
@@ -400,6 +425,32 @@ const submitRequest = () => {
 const copyReport = () => {
   if (!reportContent.value) return
   navigator.clipboard.writeText(reportContent.value)
+  alert('已复制到剪贴板')
+}
+
+const saveCurrentReport = async () => {
+  // 获取最新的报告文件名（从后端报告列表取最近一个）
+  try {
+    const listRes = await fetch('/api/reports')
+    if (!listRes.ok) throw new Error('获取报告列表失败')
+    const reports = await listRes.json()
+    if (reports.length === 0) {
+      alert('没有找到可保存的报告文件')
+      return
+    }
+    const latestFilename = reports[0].filename
+    const res = await fetch(`/api/reports/${encodeURIComponent(latestFilename)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: reportContent.value })
+    })
+    if (!res.ok) throw new Error('保存失败')
+    reportModified.value = false
+    alert('报告已保存')
+  } catch (error) {
+    console.error('保存报告失败:', error)
+    alert('保存失败，请重试')
+  }
 }
 
 const handleSelectDatabase = async (database) => {
@@ -793,42 +844,94 @@ h1 {
 .report-section {
   margin: 30px auto;
   max-width: 1000px;
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
 }
 
-.report-section h2 {
-  margin-top: 0;
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-header h2 {
+  margin: 0;
   color: #2c3e50;
   font-weight: 600;
+  font-size: 18px;
 }
 
-.report-section textarea {
-  width: 100%;
-  padding: 15px;
-  margin-bottom: 15px;
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
-  font-size: 16px;
-  resize: vertical;
+.report-actions {
+  display: flex;
+  gap: 8px;
 }
 
-.report-section button {
+.btn-report-toggle, .btn-report-save, .btn-report-copy {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-report-toggle {
+  background: #e3f2fd;
+  color: #3498db;
+}
+
+.btn-report-toggle.active {
+  background: #3498db;
+  color: white;
+}
+
+.btn-report-save {
   background: #27ae60;
   color: white;
-  border: none;
-  padding: 12px 25px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  transition: background 0.3s;
 }
 
-.report-section button:hover {
+.btn-report-save:hover {
   background: #219653;
+}
+
+.btn-report-copy {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.btn-report-copy:hover {
+  background: #ddd;
+}
+
+.report-editor {
+  width: 100%;
+  min-height: 500px;
+  padding: 24px;
+  border: none;
+  outline: none;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  box-sizing: border-box;
+  background: #fefefe;
+}
+
+.report-editor:focus {
+  background: #fffff8;
+}
+
+.report-preview {
+  padding: 24px 32px;
+  min-height: 300px;
 }
 
 /* 滚动条样式 */

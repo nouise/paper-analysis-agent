@@ -311,22 +311,60 @@ class ChromaKB(KnowledgeBase):
         collection = await self._get_chroma_collection(db_id)
         if not collection:
             raise ValueError(f"Failed to get ChromaDB collection for {db_id}")
+        
         try:
+            # 获取数据
             batch_embeddings = data.get("embeddings", None)
             batch_documents = data.get("documents", [])
-            batch_metadatas = data.get("metadatas", None)
-            batch_ids = data.get("ids", None)
-
-            await asyncio.to_thread(
-                                collection.add,
-                                embeddings=batch_embeddings,
-                                documents=batch_documents,
-                                metadatas=batch_metadatas,
-                                ids=batch_ids,
-                            )
-            logger.info(f"成功将 {len(batch_ids)} 个项 插入到临时知识库中")
+            batch_metadatas = data.get("metadatas", [])
+            batch_ids = data.get("ids", [])
+            
+            total_items = len(batch_documents)
+            
+            # 阿里云 DashScope embedding API 限制：每批最多 10 条
+            # 其他提供商可能有不同限制，可以通过配置调整
+            batch_size = 10
+            
+            logger.info(f"开始批量添加 {total_items} 个项目到知识库（每批 {batch_size} 个）")
+            
+            # 分批处理，避免超过 API 限制
+            for i in range(0, total_items, batch_size):
+                batch_num = i // batch_size + 1
+                total_batches = (total_items + batch_size - 1) // batch_size
+                
+                # 提取当前批次的数据
+                current_batch_documents = batch_documents[i:i + batch_size]
+                current_batch_metadatas = batch_metadatas[i:i + batch_size] if batch_metadatas else None
+                current_batch_ids = batch_ids[i:i + batch_size] if batch_ids else None
+                
+                # 如果提供了预计算的 embeddings，也分批（但通常不推荐，让 ChromaDB 自动生成）
+                current_batch_embeddings = None
+                if batch_embeddings:
+                    current_batch_embeddings = batch_embeddings[i:i + batch_size]
+                
+                logger.info(f"处理批次 {batch_num}/{total_batches}: 添加 {len(current_batch_documents)} 个项目...")
+                
+                # 调用 ChromaDB 添加（会自动调用 embedding function）
+                await asyncio.to_thread(
+                    collection.add,
+                    embeddings=current_batch_embeddings,  # None 时 ChromaDB 自动生成
+                    documents=current_batch_documents,
+                    metadatas=current_batch_metadatas,
+                    ids=current_batch_ids,
+                )
+                
+                logger.info(f"✅ 批次 {batch_num}/{total_batches} 添加成功")
+                
+                # 批次之间添加延迟，避免 API 限流
+                if i + batch_size < total_items:
+                    await asyncio.sleep(0.5)  # 延迟 500ms
+            
+            logger.info(f"✅ 成功添加所有 {total_items} 个项目到知识库")
+            
         except Exception as e:
-            logger.error(f"错误处理{len(batch_ids)} 个项 插入到临时知识库中，失败: {e}, {traceback.format_exc()}")
+            logger.error(f"❌ 添加内容到知识库失败: {e}")
+            logger.error(traceback.format_exc())
+            raise  # 重新抛出异常，让调用者知道失败了
 
     async def add_content(self, db_id: str, items: list[str], params: dict | None) -> list[dict]:
         """添加内容（文件/URL）"""

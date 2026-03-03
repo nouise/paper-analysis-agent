@@ -1,101 +1,135 @@
+"""
+Paper-Agent 统一数据模型 (Single Source of Truth)
+所有节点共享同一套数据结构，避免重复定义导致的类型混乱
+"""
+
 from asyncio import Queue
-from typing import List, Dict, Any, Optional,TypedDict
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, TypedDict
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 
-class BackToFrontData(BaseModel):
-    step: str
-    state: str
-    data: Any
-
+# ============================================================
+# 执行状态
+# ============================================================
 
 class ExecutionState(str, Enum):
-    """工作流执行状态枚举"""
+    """工作流执行状态"""
     INITIALIZING = "initializing"
     SEARCHING = "searching"
     READING = "reading"
-    PARSING = "parsing"
-    EXTRACTING = "extracting"
     ANALYZING = "analyzing"
+    WRITING = "writing"
     WRITING_DIRECTOR = "writing_director"
     SECTION_WRITING = "section_writing"
-    WRITING = "writing"
     REPORTING = "reporting"
     COMPLETED = "completed"
     FAILED = "failed"
     FINISHED = "finished"
 
+
+# ============================================================
+# 前后端通信
+# ============================================================
+
+class BackToFrontData(BaseModel):
+    step: str
+    state: str
+    data: Any = None
+
+
+# ============================================================
+# 论文数据结构 — 唯一定义
+# ============================================================
+
 class KeyMethodology(BaseModel):
-    name: str  # 方法名称（如“Transformer-based Sentiment Classifier”）
-    principle: str  # 核心原理
-    novelty: str  # 创新点（如“首次引入领域自适应预训练”）
+    """论文关键方法"""
+    name: Optional[str] = Field(default=None, description="方法名称")
+    principle: Optional[str] = Field(default=None, description="核心原理")
+    novelty: Optional[str] = Field(default=None, description="创新点")
 
 
 class ExtractedPaperData(BaseModel):
-    paper_id: str  # 关联搜索结果的paper_id
-    core_problem: str
-    key_methodology: KeyMethodology
-    datasets_used: List[str]  # 如["IMDB Dataset (50k reviews)", "SST-2"]
-    evaluation_metrics: List[str]
-    main_results: str  # 含关键数值，如“在IMDB上Accuracy达92.5%，优于BERT的89.3%”
-    limitations: str
-    contributions: List[str]
-    # author_institutions: Optional[str]  # 如“Stanford University, Department of CS”
-    # extract_source: dict  # 溯源：记录每个维度的提取章节，如{"core_problem": "Abstract, Introduction"}
+    """单篇论文的提取结果"""
+    paper_id: Optional[str] = Field(default=None, description="论文ID")
+    title: Optional[str] = Field(default=None, description="论文标题")
+    core_problem: Optional[str] = Field(default=None, description="核心问题")
+    key_methodology: Optional[KeyMethodology] = Field(default=None, description="关键方法")
+    datasets_used: Optional[List[str]] = Field(default=None, description="使用的数据集")
+    evaluation_metrics: Optional[List[str]] = Field(default=None, description="评估指标")
+    main_results: Optional[str] = Field(default=None, description="主要结果")
+    limitations: Optional[str] = Field(default=None, description="局限性")
+    contributions: Optional[List[str]] = Field(default=None, description="贡献")
 
-# 创建一个新的Pydantic模型来包装列表
+    @field_validator('datasets_used', 'evaluation_metrics', 'contributions', mode='before')
+    @classmethod
+    def convert_none_to_empty_list(cls, v):
+        """将 None 转换为空列表"""
+        return v if v is not None else []
+
+    def is_empty(self) -> bool:
+        """检查提取结果是否为空（所有关键字段都缺失）"""
+        return (
+            self.core_problem is None
+            and self.key_methodology is None
+            and self.main_results is None
+            and len(self.contributions or []) == 0
+        )
+
+
 class ExtractedPapersData(BaseModel):
-    papers: List[ExtractedPaperData]
+    """所有论文的提取结果集合"""
+    papers: List[ExtractedPaperData] = Field(default_factory=list, description="提取的论文数据列表")
 
-class AnalysisResults(BaseModel):
-    """分析模块产生的结构化结果"""
-    topic_clusters: Optional[Dict[str, List[str]]] = Field(default=None, description="主题聚类, key: 主题名, value: 相关paper_id列表")
-    trend_analysis: Optional[Dict[int, int]] = Field(default=None, description="趋势分析, key: 年份, value: 论文数量")
-    method_comparison: Optional[List[Dict[str, Any]]] = Field(default=None, description="方法对比表格数据")
-    influential_authors: Optional[List[str]] = Field(default=None, description="高产作者列表")
-    influential_institutions: Optional[List[str]] = Field(default=None, description="核心机构列表")
+
+# ============================================================
+# 错误信息
+# ============================================================
 
 class NodeError(BaseModel):
-    search_node_error: Optional[str] = Field(default=None, description="搜索节点错误信息")
-    reading_node_error: Optional[str] = Field(default=None, description="阅读节点错误信息")
-    analyse_node_error: Optional[str] = Field(default=None, description="分析节点错误信息")
-    writing_node_error: Optional[str] = Field(default=None, description="写作节点错误信息")
-    report_node_error: Optional[str] = Field(default=None, description="报告生成节点错误信息")
-    error: Optional[str] = Field(default=None, description="错误信息")
+    search_node_error: Optional[str] = Field(default=None)
+    reading_node_error: Optional[str] = Field(default=None)
+    analyse_node_error: Optional[str] = Field(default=None)
+    writing_node_error: Optional[str] = Field(default=None)
+    report_node_error: Optional[str] = Field(default=None)
+
+
+# ============================================================
+# 全局工作流状态
+# ============================================================
 
 class PaperAgentState(BaseModel):
-    """LangGraph工作流的全局状态对象"""
+    """工作流全局状态"""
     # 用户输入
-    frontend_data: Optional[BackToFrontData] = Field(default=None, description="前端展示数据")
-    agent_logs: Dict[str, str] = Field(default_factory=dict, description="各智能体执行日志，key为智能体名称")
-    user_request: str = Field(description="用户的原始输入请求")
-    max_papers: int = Field(default=50, description="最大论文数量")
-    
+    user_request: str = Field(description="用户的原始查询")
+    max_papers: int = Field(default=10, description="最大论文数量")
+
     # 执行状态
-    current_step: ExecutionState = Field(default=ExecutionState.INITIALIZING, description="当前执行步骤")
-    error: Optional[NodeError] = Field(default=None, description="错误信息")
-    
-    # 数据流
-    # search_results: List[PaperMetadata] = Field(default_factory=list, description="检索到的论文元数据列表")
-    search_results: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="检索到的论文元数据列表")
-    paper_contents: Optional[Dict[str, str]] = Field(default_factory=dict, description="解析后的论文全文字典, key: paper_id, value: 文本内容")
-    extracted_data: Optional[ExtractedPapersData] = Field(default_factory=list, description="提取后的结构化信息列表")
-    analyse_results: Optional[str] = Field(default=None, description="分析洞察结果")
-    outline: Optional[str] = Field(default=None, description="报告大纲")
-    writted_sections: Optional[List[str]] = Field(default=None, description="已写章节内容")
-    report_markdown: Optional[str] = Field(default=None, description="最终生成的Markdown报告内容")
-    
-    # 配置与上下文
-    llm_provider: Any = Field(default=None, description="LLM提供者实例", exclude=True)  # 排除序列化
-    config: Dict[str, Any] = Field(default_factory=dict, description="运行时配置")
+    current_step: ExecutionState = Field(default=ExecutionState.INITIALIZING)
+    error: NodeError = Field(default_factory=NodeError)
+
+    # 各节点的数据 — 按流水线顺序填充
+    search_results: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="搜索到的论文元数据")
+    extracted_data: Optional[ExtractedPapersData] = Field(default=None, description="阅读提取的结构化数据")
+    analyse_results: Optional[str] = Field(default=None, description="分析结果(JSON)")
+    writted_sections: Optional[List[str]] = Field(default=None, description="写作完成的章节列表")
+    report_markdown: Optional[str] = Field(default=None, description="最终Markdown报告")
+
+    # 配置
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ============================================================
+# LangGraph 兼容状态
+# ============================================================
 
 class State(TypedDict):
-    """LangGraph兼容的状态定义"""
+    """LangGraph 兼容的状态定义"""
     state_queue: Queue
     value: PaperAgentState
 
+
 class ConfigSchema(TypedDict):
-    """LangGraph兼容的配置定义"""
+    """LangGraph 兼容的配置定义"""
     state_queue: Queue
     value: Dict[str, Any]
