@@ -29,26 +29,26 @@ class PaddleXLayoutParser:
     def _process_file_input(self, file_input: str) -> str:
         # 检查是否为本地文件路径
         if os.path.exists(file_input):
-            logger.info(f"📁 检测到本地文件: {file_input}")
-            logger.info(f"📏 文件大小: {os.path.getsize(file_input) / 1024 / 1024:.2f} MB")
+            logger.info(f"[文件] 检测到本地文件: {file_input}")
+            logger.info(f"[大小] 文件大小: {os.path.getsize(file_input) / 1024 / 1024:.2f} MB")
 
             try:
                 # 将本地文件编码为Base64
                 encoded_content = self.encode_file_to_base64(file_input)
-                logger.info(f"✅ 文件已编码为Base64，长度: {len(encoded_content)} 字符")
+                logger.info(f"[完成] 文件已编码为Base64，长度: {len(encoded_content)} 字符")
                 return encoded_content
             except Exception as e:
-                logger.error(f"❌ 文件编码失败: {e}")
+                logger.error(f"[错误] 文件编码失败: {e}")
                 raise
 
         # 检查是否为URL
         elif file_input.startswith(("http://", "https://")):
-            logger.info(f"🌐 检测到URL: {file_input}")
+            logger.info(f"[网络] 检测到URL: {file_input}")
             return file_input
 
         # 否则假设为Base64编码内容
         else:
-            logger.info(f"📝 假设为Base64编码内容，长度: {len(file_input)} 字符")
+            logger.info(f"[编辑] 假设为Base64编码内容，长度: {len(file_input)} 字符")
             return file_input
 
     def layout_parsing(
@@ -108,10 +108,10 @@ class PaddleXLayoutParser:
 
             if response.status_code == 200:
                 result = response.json()
-                logger.info("✅ 请求成功!")
+                logger.info("[完成] 请求成功!")
                 return result
             else:
-                logger.error(f"❌ 请求失败! {self.endpoint}")
+                logger.error(f"[错误] 请求失败! {self.endpoint}")
                 try:
                     error_result = response.json()
                     logger.error(f"错误信息: {json.dumps(error_result, indent=2, ensure_ascii=False)}")
@@ -122,11 +122,11 @@ class PaddleXLayoutParser:
 
         except requests.exceptions.RequestException as e:
             health_check_response = requests.get(f"{self.base_url}/health", timeout=5)
-            logger.error(f"❌ 网络请求异常: {e}: {health_check_response.json()}")
+            logger.error(f"[错误] 网络请求异常: {e}: {health_check_response.json()}")
             return {"error": str(e)}
 
         except Exception as e:
-            logger.error(f"❌ 其他异常: {e}")
+            logger.error(f"[错误] 其他异常: {e}")
             return {"error": str(e)}
 
 
@@ -256,9 +256,9 @@ def analyze_document(file_path: str, base_url: str = "http://localhost:8080") ->
     else:
         return {"success": False, "error": f"不支持的文件类型: {file_ext}", "file_path": file_path}
 
-    logger.info(f"📄 开始分析文档: {os.path.basename(file_path)}")
-    logger.info(f"📏 文件大小: {os.path.getsize(file_path) / 1024 / 1024:.2f} MB")
-    logger.info(f"📋 文件类型: {'PDF' if file_type == 0 else '图片'}")
+    logger.info(f"[文档] 开始分析文档: {os.path.basename(file_path)}")
+    logger.info(f"[大小] 文件大小: {os.path.getsize(file_path) / 1024 / 1024:.2f} MB")
+    logger.info(f"[类型] 文件类型: {'PDF' if file_type == 0 else '图片'}")
 
     try:
         # 调用API进行识别
@@ -291,7 +291,7 @@ def analyze_folder(input_dir: str, output_dir: str, base_url: str = "http://loca
     output_path = Path(output_dir)
 
     if not input_path.exists():
-        print(f"❌ 输入目录不存在：{input_dir}")
+        print(f"[错误] 输入目录不存在：{input_dir}")
         return
 
     # 创建输出目录
@@ -307,14 +307,14 @@ def analyze_folder(input_dir: str, output_dir: str, base_url: str = "http://loca
                 files.append(file_path)
 
     if not files:
-        print("⚠️ 没有找到支持的文件")
+        print("[警告] 没有找到支持的文件")
         return
 
-    print(f"📁 找到 {len(files)} 个文件")
+    print(f"[文件] 找到 {len(files)} 个文件")
 
     success_count = 0
     for i, file_path in enumerate(files, 1):
-        print(f"🔄 [{i}/{len(files)}] {file_path.name}")
+        print(f"[处理] [{i}/{len(files)}] {file_path.name}")
 
         try:
             # 分析文档
@@ -336,16 +336,16 @@ def analyze_folder(input_dir: str, output_dir: str, base_url: str = "http://loca
                     f.write(text_content)
 
                 success_count += 1
-                print(f"✅ {output_file.name}")
+                print(f"[完成] {output_file.name}")
             else:
-                print(f"❌ 失败: {result.get('error')}")
+                print(f"[错误] 失败: {result.get('error')}")
 
         except Exception as e:
-            print(f"❌ 异常: {str(e)}")
+            print(f"[错误] 异常: {str(e)}")
 
         time.sleep(0.5)
 
-    print(f"\n📊 完成！成功: {success_count}, 总计: {len(files)}")
+    print(f"\n[统计] 完成！成功: {success_count}, 总计: {len(files)}")
 
 
 if __name__ == "__main__":
@@ -356,9 +356,9 @@ if __name__ == "__main__":
         """分析单个文件"""
         result = analyze_document(file_path, base_url)
         if result["success"]:
-            print(f"✅ 成功提取 {len(result['full_text'])} 个字符")
+            print(f"[完成] 成功提取 {len(result['full_text'])} 个字符")
         else:
-            print(f"❌ 失败: {result.get('error')}")
+            print(f"[错误] 失败: {result.get('error')}")
 
     @app.command()
     def folder(input_dir: str, output_dir: str, base_url: str = "http://172.19.13.5:8080"):

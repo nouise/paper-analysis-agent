@@ -161,16 +161,16 @@ async def writing_node(state: State) -> State:
         global_analysis = current_state.analyse_results or ""
 
         # Step 1: 生成大纲
-        print("📝 正在生成写作大纲...")
+        print("[写作] 正在生成写作大纲...")
         await state_queue.put(BackToFrontData(step=ExecutionState.WRITING_DIRECTOR, state="initializing"))
         sections = await _generate_outline(user_request, global_analysis)
-        print(f"📋 大纲包含 {len(sections)} 个章节:")
+        print(f"[大纲] 大纲包含 {len(sections)} 个章节:")
         for i, s in enumerate(sections):
             print(f"  {i + 1}. {s[:60]}...")
         await state_queue.put(BackToFrontData(step=ExecutionState.WRITING_DIRECTOR, state="completed"))
 
         # Step 2: 并行写作（限制并发避免 API 过载）
-        print(f"\n✍️ 开始并行写作 {len(sections)} 个章节...")
+        print(f"\n[编辑] 开始并行写作 {len(sections)} 个章节...")
         semaphore = asyncio.Semaphore(2)  # 最多2个章节同时写
 
         async def _write_with_semaphore(section, idx):
@@ -182,7 +182,7 @@ async def writing_node(state: State) -> State:
                 await state_queue.put(BackToFrontData(
                     step=f"{ExecutionState.SECTION_WRITING}_{idx + 1}", state="completed"
                 ))
-                print(f"  ✅ 章节 {idx + 1} 写作完成 ({len(content)} 字)")
+                print(f"  [完成] 章节 {idx + 1} 写作完成 ({len(content)} 字)")
                 return content
 
         tasks = [_write_with_semaphore(s, i) for i, s in enumerate(sections)]

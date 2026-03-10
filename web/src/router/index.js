@@ -7,24 +7,24 @@ import History from '../views/History.vue'
 const routes = [
   {
     path: '/',
+    name: 'Home',
+    component: Home,
+    meta: {
+      title: 'Research Atelier',
+      icon: '◈'
+    }
+  },
+  {
+    path: '/classic',
     component: MainLayout,
     children: [
-      {
-        path: '',
-        name: 'Home',
-        component: Home,
-        meta: {
-          title: '报告生成',
-          icon: '📝'
-        }
-      },
       {
         path: 'history',
         name: 'History',
         component: History,
         meta: {
-          title: '历史报告',
-          icon: '📚'
+          title: 'History Archive',
+          icon: '◉'
         }
       },
       {
@@ -32,8 +32,8 @@ const routes = [
         name: 'KnowledgeBase',
         component: KnowledgeBase,
         meta: {
-          title: '知识库管理',
-          icon: '🗄️'
+          title: 'Knowledge Library',
+          icon: '◆'
         }
       }
     ]

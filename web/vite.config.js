@@ -8,15 +8,15 @@ export default defineConfig({
     allowedHosts: ['.natappfree.cc', '.natapp.cc'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8002',
         changeOrigin: true
       },
       '/knowledge': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8002',
         changeOrigin: true
       },
       '/send_input': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8002',
         changeOrigin: true
       }
     }

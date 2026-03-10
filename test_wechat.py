@@ -68,9 +68,9 @@ AI 技术正在快速发展。
             output_filename="test_article.html"
         )
 
-        print(f"✅ 转换成功！")
-        print(f"📄 HTML 文件: {html_path}")
-        print(f"📏 HTML 大小: {len(html_content)} 字符")
+        print(f"[成功] 转换成功！")
+        print(f"[文件] HTML 文件: {html_path}")
+        print(f"[大小] HTML 大小: {len(html_content)} 字符")
         print(f"\n💡 请在浏览器中打开查看效果:")
         print(f"   file://{Path(html_path).absolute()}")
 
@@ -112,9 +112,9 @@ def test_convert_report():
             output_filename=f"{report.title}.html"
         )
 
-        print(f"✅ 转换成功！")
-        print(f"📄 HTML 文件: {html_path}")
-        print(f"📏 HTML 大小: {len(html_content)} 字符")
+        print(f"[成功] 转换成功！")
+        print(f"[文件] HTML 文件: {html_path}")
+        print(f"[大小] HTML 大小: {len(html_content)} 字符")
 
         return True
 

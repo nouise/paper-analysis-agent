@@ -54,7 +54,7 @@ class WeChatPublisher:
             print("\n首次使用需要配置微信公众号凭证。")
             print("\n获取方式：")
             print("  1. 登录 https://mp.weixin.qq.com")
-            print("  2. 设置与开发 → 基本配置")
+            print("  2. 设置与开发 -> 基本配置")
             print("  3. 复制AppID和AppSecret\n")
 
             should_setup = input("是否现在配置？(Y/n): ").strip().lower()
@@ -84,9 +84,9 @@ class WeChatPublisher:
 
         # 验证格式
         if not self.appid.startswith('wx') or len(self.appid) != 18:
-            print("⚠ 警告: AppID格式可能不正确（应为wx开头的18位字符）")
+            print("[!] 警告: AppID格式可能不正确（应为wx开头的18位字符）")
 
-        print(f"✓ 配置加载成功 (AppID: {self.appid[:6]}***)")
+        print(f"[V] 配置加载成功 (AppID: {self.appid[:6]}***)")
 
     def _interactive_setup(self):
         """交互式配置向导"""
@@ -96,7 +96,7 @@ class WeChatPublisher:
 
         # 简单验证
         if not appid.startswith('wx'):
-            print("⚠ 警告: AppID通常以wx开头")
+            print("[!] 警告: AppID通常以wx开头")
 
         # 创建配置目录和文件
         os.makedirs(os.path.dirname(self.CONFIG_FILE), exist_ok=True)
@@ -106,7 +106,7 @@ class WeChatPublisher:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
 
         os.chmod(self.CONFIG_FILE, 0o600)
-        print(f"\n✓ 配置已保存到: {self.CONFIG_FILE}")
+        print(f"\n[V] 配置已保存到: {self.CONFIG_FILE}")
         print("  (已设置权限为600，仅当前用户可读写)")
 
         self.appid = appid
@@ -119,9 +119,9 @@ class WeChatPublisher:
 
         # 提供针对性的解决建议
         if errcode == 40164:
-            error_detail += "\n\n💡 解决方法："
+            error_detail += "\n\n[TIP] 解决方法："
             error_detail += "\n  1. 登录微信公众平台 https://mp.weixin.qq.com"
-            error_detail += "\n  2. 设置与开发 → 基本配置 → IP白名单"
+            error_detail += "\n  2. 设置与开发 -> 基本配置 -> IP白名单"
             error_detail += "\n  3. 添加当前服务器IP"
             try:
                 import socket
@@ -131,13 +131,13 @@ class WeChatPublisher:
                 pass
 
         elif errcode in [40001, 40125, 40013]:
-            error_detail += "\n\n💡 解决方法："
+            error_detail += "\n\n[TIP] 解决方法："
             error_detail += "\n  1. 检查配置文件中的AppID和AppSecret是否正确"
             error_detail += f"\n  2. 配置文件位置: {self.CONFIG_FILE}"
             error_detail += "\n  3. AppID应该以wx开头，长度18位"
 
         elif errcode == 45009:
-            error_detail += "\n\n💡 解决方法："
+            error_detail += "\n\n[TIP] 解决方法："
             error_detail += "\n  API调用次数已达上限，请明天再试"
             error_detail += "\n  或联系微信公众平台提升配额"
 
@@ -161,13 +161,13 @@ class WeChatPublisher:
 
                 # 检查token是否过期（提前5分钟刷新）
                 if time.time() < cache.get('expires_at', 0) - 300:
-                    print("✓ 使用缓存的access_token")
+                    print("[V] 使用缓存的access_token")
                     return cache['access_token']
             except Exception as e:
-                print(f"⚠ 读取token缓存失败: {e}")
+                print(f"[!] 读取token缓存失败: {e}")
 
         # 请求新的token
-        print("→ 正在获取新的access_token...")
+        print("-> 正在获取新的access_token...")
         url = f"{self.BASE_URL}/token"
         params = {
             'grant_type': 'client_credential',
@@ -200,7 +200,7 @@ class WeChatPublisher:
         with open(self.TOKEN_CACHE_FILE, 'w') as f:
             json.dump(cache_data, f, indent=2)
 
-        print(f"✓ 获取access_token成功 (有效期: {expires_in}秒)")
+        print(f"[V] 获取access_token成功 (有效期: {expires_in}秒)")
         return access_token
 
     def upload_image(self, image_path: str, return_url: bool = False):
@@ -217,7 +217,7 @@ class WeChatPublisher:
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"图片文件不存在: {image_path}")
 
-        print(f"→ 正在上传图片: {os.path.basename(image_path)}")
+        print(f"-> 正在上传图片: {os.path.basename(image_path)}")
 
         token = self.get_access_token()
         url = f"{self.BASE_URL}/material/add_material"
@@ -243,7 +243,7 @@ class WeChatPublisher:
 
         media_id = result.get('media_id')
         image_url = result.get('url', '')
-        print(f"✓ 图片上传成功 (media_id: {media_id})")
+        print(f"[V] 图片上传成功 (media_id: {media_id})")
 
         if return_url:
             return media_id, image_url
@@ -325,7 +325,7 @@ class WeChatPublisher:
             image_path = Path(base_dir) / src
 
             if not image_path.exists():
-                print(f"  ⚠️ 图片不存在，跳过: {src}")
+                print(f"  [!]️ 图片不存在，跳过: {src}")
                 return match.group(0)
 
             try:
@@ -337,18 +337,18 @@ class WeChatPublisher:
                     # 替换为微信URL
                     return f'<img{before_src}src="{wechat_url}"{after_src}>'
                 else:
-                    print(f"  ⚠️ 未获取到URL，保持原路径: {src}")
+                    print(f"  [!]️ 未获取到URL，保持原路径: {src}")
                     return match.group(0)
 
             except Exception as e:
-                print(f"  ⚠️ 上传图片失败 {src}: {e}")
+                print(f"  [!]️ 上传图片失败 {src}: {e}")
                 return match.group(0)
 
         # 执行替换
         content = re.sub(img_pattern, replace_image, content)
 
         if uploaded_count > 0:
-            print(f"  ✓ 成功上传 {uploaded_count} 张内容图片")
+            print(f"  [V] 成功上传 {uploaded_count} 张内容图片")
 
         return content
 
@@ -439,7 +439,7 @@ class WeChatPublisher:
         )
 
         # 打印转换统计
-        print(f"  → 背景色区块转换: 成功转换 {conversion_count['converted']} 个, 排除 {conversion_count['excluded']} 个")
+        print(f"  -> 背景色区块转换: 成功转换 {conversion_count['converted']} 个, 排除 {conversion_count['excluded']} 个")
 
         # === 超级压缩：彻底删除所有空白（这是关键！）===
         # 1. 删除所有标签间的空白和换行符
@@ -656,12 +656,12 @@ class WeChatPublisher:
         content = self._remove_cover_image(content)
 
         # 2. 上传内容中的其他图片并替换为微信URL
-        print("\n→ 正在处理内容中的图片...")
+        print("\n-> 正在处理内容中的图片...")
         content = self._upload_content_images(content, content_base_dir)
 
         # 3. 修复微信编辑器的样式破坏问题
         content = self._fix_wechat_editor_issues(content)
-        print("✓ 已优化HTML格式（防止编辑模式样式错位）")
+        print("[V] 已优化HTML格式（防止编辑模式样式错位）")
 
         # 微信字段长度限制
         MAX_AUTHOR_BYTES = 20      # 作者名20字节
@@ -688,7 +688,7 @@ class WeChatPublisher:
 
         # 优先按字符数检查（微信官方限制是64字符）
         if title_chars > MAX_TITLE_CHARS:
-            print(f"\n⚠️  标题过长警告")
+            print(f"\n[!]️  标题过长警告")
             print(f"原标题: {original_title}")
             print(f"长度: {title_chars} 字符（限制: {MAX_TITLE_CHARS} 字符）")
 
@@ -698,7 +698,7 @@ class WeChatPublisher:
             print(f"\n提示: 您可以在微信编辑器中手动修改为完整标题\n")
         # 备用检查：如果字节数超过192（极端情况）
         elif title_bytes > MAX_TITLE_BYTES:
-            print(f"\n⚠️  标题字节数过长")
+            print(f"\n[!]️  标题字节数过长")
             print(f"原标题: {original_title}")
             print(f"字节数: {title_bytes} 字节（限制: {MAX_TITLE_BYTES} 字节）")
 
@@ -707,13 +707,13 @@ class WeChatPublisher:
             print(f"已截断为: {title}")
             print(f"\n提示: 您可以在微信编辑器中手动修改为完整标题\n")
 
-        print(f"→ 正在创建草稿: {title}")
+        print(f"-> 正在创建草稿: {title}")
 
         if author:
             original_author = author
             author = truncate_by_bytes(author, MAX_AUTHOR_BYTES)
             if author != original_author:
-                print(f"⚠ 作者名超长，已自动截断：{original_author} → {author}")
+                print(f"[!] 作者名超长，已自动截断：{original_author} -> {author}")
 
         if not digest:
             digest = truncate_by_bytes(title, 54)  # 使用标题（最多54字节）作为摘要
@@ -721,7 +721,7 @@ class WeChatPublisher:
         original_digest = digest
         digest = truncate_by_bytes(digest, MAX_DIGEST_BYTES)
         if digest != original_digest:
-            print(f"⚠ 摘要超长，已自动截断")
+            print(f"[!] 摘要超长，已自动截断")
 
         token = self.get_access_token()
         url = f"{self.BASE_URL}/draft/add?access_token={token}"
@@ -741,15 +741,15 @@ class WeChatPublisher:
         if thumb_media_id:
             article_data["thumb_media_id"] = thumb_media_id
             article_data["show_cover_pic"] = show_cover_pic
-            print(f"  → 使用封面图片 media_id: {thumb_media_id}")
+            print(f"  -> 使用封面图片 media_id: {thumb_media_id}")
         else:
             # 没有封面时，不添加 thumb_media_id 和 show_cover_pic 字段
-            print(f"  → 未提供封面图片，跳过封面相关字段")
+            print(f"  -> 未提供封面图片，跳过封面相关字段")
 
         articles = {"articles": [article_data]}
 
         # 调试：打印请求数据
-        print(f"\n→ 请求数据预览:")
+        print(f"\n-> 请求数据预览:")
         print(f"  标题: {title}")
         print(f"  作者: {author}")
         print(f"  摘要: {digest}")
@@ -759,7 +759,7 @@ class WeChatPublisher:
 
         # 打印完整的 JSON 数据（用于调试）
         import json
-        print(f"\n→ 完整请求 JSON:")
+        print(f"\n-> 完整请求 JSON:")
         print(json.dumps(articles, ensure_ascii=False, indent=2))
 
         headers = {'Content-Type': 'application/json; charset=utf-8'}
@@ -771,7 +771,7 @@ class WeChatPublisher:
         if 'errcode' in result and result['errcode'] != 0:
             # 如果是token过期，尝试刷新token后重试
             if result['errcode'] in [40001, 42001]:
-                print("⚠ access_token已过期，正在刷新...")
+                print("[!] access_token已过期，正在刷新...")
                 self.access_token = self.get_access_token(force_refresh=True)
                 token = self.access_token
                 url = f"{self.BASE_URL}/draft/add?access_token={token}"
@@ -794,7 +794,7 @@ class WeChatPublisher:
                 )
                 raise Exception(error_msg)
 
-        print(f"✓ 草稿创建成功!")
+        print(f"[V] 草稿创建成功!")
         print(f"  media_id: {result.get('media_id')}")
 
         return result
@@ -876,14 +876,14 @@ def main():
         )
 
         print(f"\n{'='*50}")
-        print("✓ 发布成功！请前往微信公众号后台查看草稿")
+        print("[V] 发布成功！请前往微信公众号后台查看草稿")
         print(f"{'='*50}")
 
     except KeyboardInterrupt:
         print("\n\n操作已取消")
         sys.exit(0)
     except Exception as e:
-        print(f"\n✗ 错误: {e}")
+        print(f"\n[X] 错误: {e}")
         sys.exit(1)
 
 

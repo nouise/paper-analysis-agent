@@ -86,15 +86,15 @@ async def report_node(state: State) -> State:
 3. 保持专业学术风格
 4. 直接输出报告"""
 
-        print("📄 正在生成最终报告...")
+        print("[报告] 正在生成最终报告...")
         response = await agent.run(task=prompt)
         report_md = response.messages[-1].content
-        print(f"✅ 报告生成完成 ({len(report_md)} 字)")
+        print(f"[完成] 报告生成完成 ({len(report_md)} 字)")
 
         # 保存报告到文件
         try:
             saved_path = save_report_to_file(report_md, current_state.user_request)
-            print(f"💾 报告已保存到: {saved_path}")
+            print(f"[保存] 报告已保存到: {saved_path}")
         except Exception as save_error:
             logger.warning(f"保存报告失败: {save_error}")
 

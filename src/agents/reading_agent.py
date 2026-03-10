@@ -99,7 +99,7 @@ async def process_papers_with_semaphore(papers: List[Dict], max_concurrent: int 
     
     async def process_one_paper(paper: Dict, index: int) -> Any:
         async with semaphore:
-            print(f"📖 [{index+1}/{len(papers)}] 正在阅读论文: {paper.get('title', 'Unknown')[:60]}...")
+            print(f"[阅读] [{index+1}/{len(papers)}] 正在阅读论文: {paper.get('title', 'Unknown')[:60]}...")
             
             # 简化传递给 LLM 的内容，减少token消耗
             simplified_paper = {
@@ -118,14 +118,14 @@ async def process_papers_with_semaphore(papers: List[Dict], max_concurrent: int 
                 try:
                     result = await read_agent.run(task=str(simplified_paper))
                     print("result:", result)
-                    print(f"✅ [{index+1}/{len(papers)}] 论文阅读完成")
+                    print(f"[完成] [{index+1}/{len(papers)}] 论文阅读完成")
                     return result
                 except Exception as e:
                     if attempt < max_retries - 1:
-                        print(f"⚠️ [{index+1}/{len(papers)}] 第 {attempt+1} 次尝试失败: {str(e)[:100]}, 重试中...")
+                        print(f"[警告] [{index+1}/{len(papers)}] 第 {attempt+1} 次尝试失败: {str(e)[:100]}, 重试中...")
                         await asyncio.sleep(2 ** attempt)  # 指数退避
                     else:
-                        print(f"❌ [{index+1}/{len(papers)}] 所有尝试均失败: {str(e)[:100]}")
+                        print(f"[错误] [{index+1}/{len(papers)}] 所有尝试均失败: {str(e)[:100]}")
                         raise
     
     tasks = [process_one_paper(paper, i) for i, paper in enumerate(papers)]
@@ -141,8 +141,8 @@ async def reading_node(state: State) -> State:
 
     papers = current_state.search_results
     
-    print(f"\n📚 开始阅读 {len(papers)} 篇论文...")
-    print(f"⚙️ 并发控制: 最多同时处理 2 篇论文（避免API过载）\n")
+    print(f"\n[书籍] 开始阅读 {len(papers)} 篇论文...")
+    print(f"[设置] 并发控制: 最多同时处理 2 篇论文（避免API过载）\n")
 
     # 使用受控并发处理论文（限制同时处理2篇，避免API超时）
     results = await process_papers_with_semaphore(papers, max_concurrent=2)
@@ -165,7 +165,7 @@ async def reading_node(state: State) -> State:
             logger.error(f"解析论文 {i+1} 结果失败: {e}")
     
     success_count = len(extracted_papers.papers)
-    print(f"\n📊 阅读统计: 成功 {success_count} 篇, 失败 {failed_count} 篇")     
+    print(f"\n[统计] 阅读统计: 成功 {success_count} 篇, 失败 {failed_count} 篇")     
 
      # 还得存入向量数据库中
     await add_papers_to_kb(papers,extracted_papers)

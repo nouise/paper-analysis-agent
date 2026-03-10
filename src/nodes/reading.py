@@ -7,11 +7,6 @@
   3. 验证提取结果非空
   4. 存入向量知识库供后续检索
   5. 返回 ExtractedPapersData
-
-关键修复:
-  - 每篇论文单独创建 Agent（避免共享状态污染）
-  - prompt 与 output_content_type 统一为单篇论文格式
-  - 提取后验证数据非空
 """
 
 import asyncio
@@ -23,17 +18,45 @@ from autogen_agentchat.agents import AssistantAgent
 from src.core.model_client import create_reading_model_client
 from src.core.state_models import (
     State, ExecutionState, BackToFrontData,
-    ExtractedPaperData, ExtractedPapersData, KeyMethodology,
+    ExtractedPaperData, ExtractedPapersData,
 )
 from src.core.config import config
 from src.knowledge.knowledge import knowledge_base
 from src.utils.log_utils import setup_logger
+from src.utils.core_utils import (
+    retry_with_backoff, RetryConfig,
+    PaperProcessingError, get_metrics
+)
 
 logger = setup_logger(__name__)
+metrics = get_metrics()
 
 
 # ============================================================
-# 阅读 prompt — 针对单篇论文，与 output_content_type 一致
+# 常量配置
+# ============================================================
+
+class ReadingConfig:
+    """阅读节点配置常量"""
+    # 并发控制
+    MAX_CONCURRENT_PAPERS = 2
+
+    # 重试配置
+    MAX_RETRIES = 2
+    RETRY_DELAY_BASE = 2  # 秒
+    RETRY_EXPONENTIAL_BASE = 2.0
+
+    # 内容限制
+    MAX_SUMMARY_LENGTH = 2000
+    MAX_AUTHORS_DISPLAY = 5
+    MAX_TITLE_LENGTH = 60
+
+    # 超时
+    OPERATION_TIMEOUT = 300.0  # 5分钟
+
+
+# ============================================================
+# Prompt 模板
 # ============================================================
 
 READING_PROMPT = """你是学术信息抽取专家。请根据用户提供的一篇论文信息，严格按照系统指定的 JSON Schema 输出结构化数据。
@@ -60,17 +83,34 @@ READING_PROMPT = """你是学术信息抽取专家。请根据用户提供的一
 # 单篇论文处理
 # ============================================================
 
-async def _read_one_paper(paper: Dict[str, Any], index: int, total: int) -> Optional[ExtractedPaperData]:
-    """对单篇论文调用 LLM 提取结构化信息"""
-    title = paper.get("title", "Unknown")[:60]
-    print(f"📖 [{index + 1}/{total}] 正在阅读: {title}...")
+async def _read_one_paper(
+    paper: Dict[str, Any],
+    index: int,
+    total: int
+) -> Optional[ExtractedPaperData]:
+    """
+    对单篇论文调用 LLM 提取结构化信息
+
+    Args:
+        paper: 论文元数据
+        index: 当前论文索引
+        total: 论文总数
+
+    Returns:
+        ExtractedPaperData 或 None（如果提取失败）
+    """
+    title = paper.get("title", "Unknown")[:ReadingConfig.MAX_TITLE_LENGTH]
+    paper_id = paper.get("paper_id", f"unknown_{index}")
+
+    print(f"[阅读] [{index + 1}/{total}] 正在阅读: {title}...")
+    logger.debug(f"[Reading] 处理论文 {index + 1}/{total}: {paper_id}")
 
     # 精简传给 LLM 的内容
     simplified = {
-        "paper_id": paper.get("paper_id"),
+        "paper_id": paper_id,
         "title": paper.get("title"),
-        "authors": paper.get("authors", [])[:5],
-        "summary": paper.get("summary", "")[:2000],
+        "authors": paper.get("authors", [])[:ReadingConfig.MAX_AUTHORS_DISPLAY],
+        "summary": paper.get("summary", "")[:ReadingConfig.MAX_SUMMARY_LENGTH],
         "published_date": paper.get("published_date"),
         "url": paper.get("url"),
         "primary_category": paper.get("primary_category"),
@@ -79,54 +119,72 @@ async def _read_one_paper(paper: Dict[str, Any], index: int, total: int) -> Opti
     # 每篇论文创建独立的 Agent 实例（避免状态污染）
     model_client = create_reading_model_client()
     read_agent = AssistantAgent(
-        name="read_agent",
+        name=f"read_agent_{index}",
         model_client=model_client,
         system_message=READING_PROMPT,
-        output_content_type=ExtractedPaperData,  # 单篇论文格式
+        output_content_type=ExtractedPaperData,
     )
 
-    max_retries = 2
-    for attempt in range(max_retries):
-        try:
-            result = await read_agent.run(task=str(simplified))
-            parsed: ExtractedPaperData = result.messages[-1].content
+    async def do_read() -> ExtractedPaperData:
+        """执行阅读（用于重试）"""
+        result = await read_agent.run(task=str(simplified))
+        parsed: ExtractedPaperData = result.messages[-1].content
 
-            # 补充 paper_id 和 title
-            if parsed.paper_id is None:
-                parsed.paper_id = paper.get("paper_id")
-            if parsed.title is None:
-                parsed.title = paper.get("title")
+        # 补充 paper_id 和 title
+        if parsed.paper_id is None:
+            parsed.paper_id = paper_id
+        if parsed.title is None:
+            parsed.title = paper.get("title")
 
-            # 验证提取结果非空
-            if parsed.is_empty():
-                logger.warning(f"[{index + 1}/{total}] 论文提取结果为空，尝试重试...")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2)
-                    continue
-                else:
-                    logger.error(f"[{index + 1}/{total}] 论文提取结果为空，放弃")
-                    return None
+        return parsed
 
-            print(f"✅ [{index + 1}/{total}] 阅读完成: {parsed.core_problem[:50] if parsed.core_problem else 'N/A'}...")
-            return parsed
+    try:
+        # 使用重试机制
+        parsed = await retry_with_backoff(
+            do_read,
+            config=RetryConfig(
+                max_attempts=ReadingConfig.MAX_RETRIES + 1,  # +1 因为 retry_with_backoff 的计数方式
+                base_delay=ReadingConfig.RETRY_DELAY_BASE,
+                exponential_base=ReadingConfig.RETRY_EXPONENTIAL_BASE,
+                retryable_exceptions=(Exception,),
+            )
+        )
 
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"[{index + 1}/{total}] 第 {attempt + 1} 次尝试失败: {e}, 重试中...")
-                await asyncio.sleep(2 ** attempt)
-            else:
-                logger.error(f"[{index + 1}/{total}] 所有尝试失败: {e}")
-                return None
+        # 验证提取结果非空
+        if parsed.is_empty():
+            logger.warning(f"[Reading] 论文 {paper_id} 提取结果为空")
+            return None
 
-    return None
+        # 记录指标
+        metrics.increment("papers_read_success")
+
+        print(f"[完成] [{index + 1}/{total}] 阅读完成")
+        return parsed
+
+    except Exception as e:
+        logger.error(f"[Reading] 论文 {paper_id} 提取失败: {e}")
+        metrics.increment("papers_read_failed")
+        return None
 
 
-async def _process_papers_concurrent(papers: List[Dict], max_concurrent: int = 2) -> List[ExtractedPaperData]:
-    """并发读取论文，用信号量控制并发数"""
+async def _process_papers_concurrent(
+    papers: List[Dict],
+    max_concurrent: int = ReadingConfig.MAX_CONCURRENT_PAPERS
+) -> List[ExtractedPaperData]:
+    """
+    并发读取论文，用信号量控制并发数
+
+    Args:
+        papers: 论文列表
+        max_concurrent: 最大并发数
+
+    Returns:
+        成功提取的论文数据列表
+    """
     semaphore = asyncio.Semaphore(max_concurrent)
     total = len(papers)
 
-    async def _with_semaphore(paper, idx):
+    async def _with_semaphore(paper: Dict, idx: int) -> Optional[ExtractedPaperData]:
         async with semaphore:
             return await _read_one_paper(paper, idx, total)
 
@@ -137,22 +195,42 @@ async def _process_papers_concurrent(papers: List[Dict], max_concurrent: int = 2
     valid = []
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            logger.error(f"论文 {i + 1} 处理异常: {r}")
+            logger.error(f"[Reading] 论文 {i + 1} 处理异常: {r}")
+            metrics.increment("papers_read_error")
         elif r is not None:
             valid.append(r)
+
     return valid
 
 
 # ============================================================
-# 存入知识库
+# 知识库存储
 # ============================================================
 
-async def _add_papers_to_kb(papers: List[Dict], extracted: ExtractedPapersData):
-    """将提取的论文数据存入向量知识库"""
+async def _add_papers_to_kb(
+    papers: List[Dict],
+    extracted: ExtractedPapersData,
+    state_queue: asyncio.Queue
+) -> Optional[str]:
+    """
+    将提取的论文数据存入向量知识库
+
+    Args:
+        papers: 原始论文元数据
+        extracted: 提取的论文数据
+        state_queue: 状态队列（用于报告进度）
+
+    Returns:
+        知识库 ID 或 None（如果失败）
+    """
     try:
         embedding_dic = config.get("embedding-model", {})
         embedding_provider = embedding_dic.get("model-provider")
         provider_dic = config.get(embedding_provider, {})
+
+        if not provider_dic:
+            logger.error(f"[Reading] 未找到 Embedding 提供商配置: {embedding_provider}")
+            return None
 
         embed_info = {
             "name": embedding_dic.get("model"),
@@ -162,13 +240,29 @@ async def _add_papers_to_kb(papers: List[Dict], extracted: ExtractedPapersData):
         }
 
         kb_type = config.get("KB_TYPE", "chroma")
+
+        # 创建临时知识库
         db_info = await knowledge_base.create_database(
-            "临时知识库", "本次报告临时知识库", kb_type=kb_type, embed_info=embed_info, llm_info=None,
+            "临时知识库",
+            "本次报告临时知识库",
+            kb_type=kb_type,
+            embed_info=embed_info,
+            llm_info=None,
         )
-        db_id = db_info["db_id"]
+        db_id = db_info.get("db_id")
+
+        if not db_id:
+            logger.error("[Reading] 创建知识库失败，未返回 db_id")
+            return None
+
         config.set("tmp_db_id", db_id)
 
-        documents = [json.dumps(p.model_dump(), ensure_ascii=False) for p in extracted.papers]
+        # 准备文档数据
+        documents = [
+            json.dumps(p.model_dump(), ensure_ascii=False)
+            for p in extracted.papers
+        ]
+
         metadatas = []
         for paper in papers[:len(extracted.papers)]:
             metadatas.append({
@@ -178,60 +272,103 @@ async def _add_papers_to_kb(papers: List[Dict], extracted: ExtractedPapersData):
                 "url": str(paper.get("url", "")),
                 "primary_category": str(paper.get("primary_category", "")),
             })
+
         ids = [f"paper_{i}" for i in range(len(documents))]
 
+        # 存入知识库
         await knowledge_base.add_processed_content(db_id, {
             "documents": documents,
             "metadatas": metadatas,
             "ids": ids,
         })
-        logger.info(f"已将 {len(documents)} 篇论文存入知识库 {db_id}")
+
+        logger.info(f"[Reading] 已将 {len(documents)} 篇论文存入知识库 {db_id}")
+        metrics.increment("papers_added_to_kb", len(documents))
+
+        return db_id
 
     except Exception as e:
-        logger.error(f"存入知识库失败: {e}")
+        logger.error(f"[Reading] 存入知识库失败: {e}")
+        return None
 
 
 # ============================================================
-# 阅读节点
+# 阅读节点入口
 # ============================================================
 
 async def reading_node(state: State) -> State:
-    """阅读节点: 论文列表 → LLM逐篇提取 → 结构化数据"""
+    """
+    阅读节点: 论文列表 → LLM逐篇提取 → 结构化数据
+
+    Args:
+        state: LangGraph 状态
+
+    Returns:
+        更新后的状态
+    """
     state_queue = state["state_queue"]
     current_state = state["value"]
     current_state.current_step = ExecutionState.READING
-    await state_queue.put(BackToFrontData(step=ExecutionState.READING, state="initializing"))
 
-    try:
-        papers = current_state.search_results or []
-        if not papers:
-            logger.warning("没有论文可供阅读")
-            current_state.extracted_data = ExtractedPapersData(papers=[])
-            await state_queue.put(BackToFrontData(step=ExecutionState.READING, state="completed", data="没有论文可供阅读"))
+    await state_queue.put(BackToFrontData(
+        step=ExecutionState.READING,
+        state="initializing"
+    ))
+
+    # 记录指标
+    with metrics.timer("reading_node_total"):
+        try:
+            papers = current_state.search_results or []
+
+            if not papers:
+                logger.warning("[Reading] 没有论文可供阅读")
+                current_state.extracted_data = ExtractedPapersData(papers=[])
+                await state_queue.put(BackToFrontData(
+                    step=ExecutionState.READING,
+                    state="completed",
+                    data="没有论文可供阅读"
+                ))
+                return {"value": current_state}
+
+            print(f"\n[书籍] 开始阅读 {len(papers)} 篇论文 (最多{ReadingConfig.MAX_CONCURRENT_PAPERS}篇并发)...\n")
+
+            # 并发读取
+            valid_papers = await _process_papers_concurrent(
+                papers,
+                max_concurrent=ReadingConfig.MAX_CONCURRENT_PAPERS
+            )
+
+            extracted = ExtractedPapersData(papers=valid_papers)
+
+            success_count = len(valid_papers)
+            fail_count = len(papers) - success_count
+
+            print(f"\n[统计] 阅读统计: 成功 {success_count} 篇, 失败 {fail_count} 篇")
+            logger.info(f"[Reading] 完成: 成功 {success_count}/{len(papers)}")
+
+            # 存入知识库
+            if valid_papers:
+                await _add_papers_to_kb(papers, extracted, state_queue)
+
+            current_state.extracted_data = extracted
+
+            await state_queue.put(BackToFrontData(
+                step=ExecutionState.READING,
+                state="completed",
+                data=f"论文阅读完成，成功提取 {success_count} 篇"
+            ))
+
             return {"value": current_state}
 
-        print(f"\n📚 开始阅读 {len(papers)} 篇论文 (最多2篇并发)...\n")
+        except Exception as e:
+            err_msg = f"Reading failed: {e}"
+            logger.error(f"[Reading] {err_msg}", exc_info=True)
+            metrics.increment("reading_node_errors")
 
-        # 并发读取
-        valid_papers = await _process_papers_concurrent(papers, max_concurrent=2)
-
-        extracted = ExtractedPapersData(papers=valid_papers)
-        print(f"\n📊 阅读统计: 成功 {len(valid_papers)} 篇, 失败 {len(papers) - len(valid_papers)} 篇")
-
-        # 存入知识库
-        if valid_papers:
-            await _add_papers_to_kb(papers, extracted)
-
-        current_state.extracted_data = extracted
-        await state_queue.put(BackToFrontData(
-            step=ExecutionState.READING, state="completed",
-            data=f"论文阅读完成，成功提取 {len(valid_papers)} 篇"
-        ))
-        return {"value": current_state}
-
-    except Exception as e:
-        err_msg = f"Reading failed: {e}"
-        logger.error(err_msg)
-        current_state.error.reading_node_error = err_msg
-        await state_queue.put(BackToFrontData(step=ExecutionState.READING, state="error", data=err_msg))
-        return {"value": current_state}
+            current_state.error.reading_node_error = err_msg
+            await state_queue.put(BackToFrontData(
+                step=ExecutionState.READING,
+                state="error",
+                data=err_msg
+            ))
+            return {"value": current_state}

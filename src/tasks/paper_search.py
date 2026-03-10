@@ -51,7 +51,7 @@ class PaperSearcher:
                 # 关键修复：用括号包裹整个关键词查询，确保日期过滤应用到所有词
                 search_query = f"({search_query}) AND {date_filter}"
                 
-                print(f"\n📆 arXiv 日期过滤:")
+                print(f"\n[日期] arXiv 日期过滤:")
                 print(f"  - 原始 start_date: {start_date}")
                 print(f"  - 原始 end_date: {end_date}")
                 print(f"  - 格式化后 start: {start_date_str}")
@@ -59,7 +59,7 @@ class PaperSearcher:
                 print(f"  - 日期过滤器: {date_filter}")
 
             logger.info(f"开始搜索论文: query='{search_query}', max_results={max_results}, sort_by={sort_by}")
-            print(f"\n🔍 最终 arXiv 查询语句:")
+            print(f"\n[搜索] 最终 arXiv 查询语句:")
             print(f"  {search_query}\n")
 
             # 创建搜索对象

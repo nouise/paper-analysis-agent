@@ -353,16 +353,16 @@ class ChromaKB(KnowledgeBase):
                     ids=current_batch_ids,
                 )
                 
-                logger.info(f"✅ 批次 {batch_num}/{total_batches} 添加成功")
+                logger.info(f"[完成] 批次 {batch_num}/{total_batches} 添加成功")
                 
                 # 批次之间添加延迟，避免 API 限流
                 if i + batch_size < total_items:
                     await asyncio.sleep(0.5)  # 延迟 500ms
             
-            logger.info(f"✅ 成功添加所有 {total_items} 个项目到知识库")
+            logger.info(f"[完成] 成功添加所有 {total_items} 个项目到知识库")
             
         except Exception as e:
-            logger.error(f"❌ 添加内容到知识库失败: {e}")
+            logger.error(f"[错误] 添加内容到知识库失败: {e}")
             logger.error(traceback.format_exc())
             raise  # 重新抛出异常，让调用者知道失败了
 
