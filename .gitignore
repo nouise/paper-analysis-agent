@@ -113,10 +113,9 @@ dist/
 *.dylib
 
 # 运行时数据
+output/
 data/knowledge_base_data/chroma_data/
 data/knowledge_base_data/global_metadata.json
-output/reports/
-output/log/
 
 # IDE / 其他
 .trae/

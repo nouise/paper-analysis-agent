@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
+    port: 5174,
     allowedHosts: ['.natappfree.cc', '.natapp.cc'],
     historyApiFallback: true,
     proxy: {
