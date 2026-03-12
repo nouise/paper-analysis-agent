@@ -124,3 +124,5 @@ data/knowledge_base_data/global_metadata.json
 .trae/
 .claude/
 npm-cache/
+npm-cache/
+.npm/
