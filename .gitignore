@@ -123,3 +123,4 @@ data/knowledge_base_data/global_metadata.json
 # IDE / 其他
 .trae/
 .claude/
+npm-cache/
