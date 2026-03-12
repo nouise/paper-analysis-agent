@@ -55,8 +55,9 @@ node_modules/
 /.vite
 *.local
 
-# npm 缓存（Windows路径）
-web/D:\npm-cache/
+# npm 缓存（Windows 风格目录名，反斜杠需要转义）
+web/D:\\npm-cache/
+web/D:\\npm-cache/**
 
 # 数据文件
 ## 缓存
