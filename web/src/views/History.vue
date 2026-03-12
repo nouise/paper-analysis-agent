@@ -1,164 +1,240 @@
 <template>
-  <div class="history-container">
-    <div class="page-header">
-      <h1>历史报告</h1>
-      <div class="header-actions">
-        <button class="btn-refresh" @click="loadHistory" :disabled="isLoading">
-          🔄 刷新
+  <div class="history-studio">
+    <!-- Header -->
+    <header class="studio-header">
+      <div class="header-content">
+        <h1 class="page-title">
+          <span class="title-accent">Research</span> History
+        </h1>
+        <p class="page-subtitle">Browse and manage your previous research reports</p>
+      </div>
+      <button class="refresh-btn" @click="loadHistory" :disabled="isLoading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spinning: isLoading }">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Refresh
+      </button>
+    </header>
+
+    <!-- Content -->
+    <div class="content-wrapper">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading history...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="historyList.length === 0 && !selectedReport" class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <h3>No Reports Yet</h3>
+        <p>Start your first research to see it here</p>
+        <button class="primary-btn" @click="goToCreate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Research
         </button>
       </div>
-    </div>
 
-    <!-- 加载状态 -->
-    <div class="loading-state" v-if="isLoading">
-      <div class="spinner"></div>
-      <p>加载历史报告...</p>
-    </div>
-
-    <!-- 空状态 -->
-    <div class="empty-state" v-else-if="historyList.length === 0 && !selectedReport">
-      <div class="empty-icon">📋</div>
-      <p>暂无历史报告</p>
-      <button class="btn-create" @click="goToCreate">创建第一个报告</button>
-    </div>
-
-    <!-- 报告详情视图 -->
-    <div class="report-detail" v-if="selectedReport">
-      <div class="detail-header">
-        <button class="btn-back" @click="closeReport">← 返回列表</button>
-        <div class="detail-actions">
-          <button class="btn-toggle-edit" @click="toggleEdit" :class="{ active: isEditing }">
-            {{ isEditing ? '📖 预览' : '✏️ 编辑' }}
+      <!-- Report Detail View -->
+      <div v-else-if="selectedReport" class="detail-view">
+        <div class="detail-header">
+          <button class="back-btn" @click="closeReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Back to List
           </button>
-          <button class="btn-save" v-if="isEditing && isModified" @click="saveReport">
-            💾 保存
-          </button>
-          <button class="btn-copy" @click="copyReport">📋 复制</button>
-          <button class="btn-wechat" @click="showWechatModal = true">📱 微信公众号</button>
+          <div class="detail-actions">
+            <button class="action-btn" :class="{ active: isEditing }" @click="toggleEdit">
+              {{ isEditing ? 'Preview' : 'Edit' }}
+            </button>
+            <button v-if="isEditing && isModified" class="action-btn primary" @click="saveReport">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Save
+            </button>
+            <button class="action-btn" @click="copyReport">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              Copy
+            </button>
+            <button class="action-btn wechat" @click="showWechatModal = true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+              </svg>
+              WeChat
+            </button>
+          </div>
+        </div>
+
+        <div class="detail-meta">
+          <div class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span>{{ selectedReport.created_at }}</span>
+          </div>
+          <div class="meta-item query">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <span>{{ selectedReport.query }}</span>
+          </div>
+          <div v-if="isModified" class="modified-badge">Unsaved Changes</div>
+        </div>
+
+        <div class="detail-content">
+          <textarea
+            v-if="isEditing"
+            v-model="editContent"
+            class="content-editor"
+            spellcheck="false"
+            @input="isModified = true"
+          ></textarea>
+          <div v-else class="content-preview markdown-body" v-html="renderedMarkdown"></div>
         </div>
       </div>
 
-      <div class="detail-meta">
-        <span class="meta-tag">📅 {{ selectedReport.created_at }}</span>
-        <span class="meta-tag">🔍 {{ selectedReport.query }}</span>
-        <span class="meta-tag warning" v-if="isModified">⚠️ 未保存</span>
-      </div>
-
-      <!-- 编辑模式 -->
-      <div class="editor-container" v-if="isEditing">
-        <textarea
-          v-model="editContent"
-          class="markdown-editor"
-          spellcheck="false"
-          @input="isModified = true"
-        ></textarea>
-      </div>
-
-      <!-- 预览模式 -->
-      <div class="preview-container markdown-body" v-else v-html="renderedMarkdown"></div>
-    </div>
-
-    <!-- 微信公众号转换弹窗 -->
-    <div class="modal-overlay" v-if="showWechatModal" @click="closeWechatModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>📱 转换为微信公众号格式</h2>
-          <button class="btn-close" @click="closeWechatModal">✕</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-group">
-            <label>主题风格</label>
-            <select v-model="wechatTheme" class="form-select">
-              <option value="tech">科技风 (蓝紫渐变)</option>
-              <option value="minimal">简约风 (黑白灰)</option>
-              <option value="business">商务风 (深蓝金色)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>作者</label>
-            <input v-model="wechatAuthor" type="text" class="form-input" placeholder="Paper Agent" />
-          </div>
-
-          <div class="preview-info">
-            <p>💡 转换后的 HTML 将保存到 <code>output/wechat/</code> 目录</p>
-            <p>📋 你可以在浏览器中预览，然后复制粘贴到微信公众号编辑器</p>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="closeWechatModal">取消</button>
-          <button class="btn-primary" @click="convertToWechat" :disabled="isConverting">
-            {{ isConverting ? '转换中...' : '🔄 转换为 HTML' }}
-          </button>
-          <button class="btn-success" @click="publishToWechat" :disabled="isPublishing">
-            {{ isPublishing ? '发布中...' : '🚀 一键发布到微信' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- HTML 预览弹窗 -->
-    <div class="modal-overlay" v-if="showHtmlPreview" @click="closeHtmlPreview">
-      <div class="modal-content modal-large" @click.stop>
-        <div class="modal-header">
-          <h2>📄 HTML 预览</h2>
-          <button class="btn-close" @click="closeHtmlPreview">✕</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="html-preview-actions">
-            <button class="btn-copy-html" @click="copyHtmlContent">📋 复制 HTML</button>
-            <button class="btn-open-file" @click="openHtmlFile">🌐 在浏览器中打开</button>
-          </div>
-          <div class="html-preview-container" v-html="previewHtmlContent"></div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="closeHtmlPreview">关闭</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 报告列表 -->
-    <div class="history-list" v-if="!selectedReport && historyList.length > 0">
-      <div
-        v-for="item in historyList"
-        :key="item.filename"
-        class="history-card"
-      >
-        <div class="card-header">
-          <div class="report-title">
-            <span class="report-icon">📄</span>
-            <span class="title-text">{{ item.title }}</span>
-          </div>
-        </div>
-
-        <div class="card-content">
-          <div class="report-query">
-            <span class="label">查询内容:</span>
-            <span class="content">{{ item.query }}</span>
-          </div>
-
-          <div class="report-meta">
-            <div class="meta-item">
-              <span class="meta-icon">📅</span>
-              <span class="meta-text">{{ item.created_at }}</span>
+      <!-- Reports Grid -->
+      <div v-else class="reports-grid">
+        <div
+          v-for="item in historyList"
+          :key="item.filename"
+          class="report-card"
+          @click="viewReport(item)"
+        >
+          <div class="card-header">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
             </div>
-            <div class="meta-item">
-              <span class="meta-icon">📏</span>
-              <span class="meta-text">{{ formatSize(item.size) }}</span>
+            <button
+              class="delete-btn"
+              @click.stop="deleteReport(item)"
+              title="Delete report"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="card-content">
+            <h3 class="report-title">{{ item.title }}</h3>
+            <p class="report-query">{{ item.query }}</p>
+          </div>
+
+          <div class="card-footer">
+            <div class="footer-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>{{ item.created_at }}</span>
+            </div>
+            <div class="footer-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>{{ formatSize(item.size) }}</span>
             </div>
           </div>
         </div>
-
-        <div class="card-actions">
-          <button class="btn-view" @click="viewReport(item)">👁️ 查看详情</button>
-          <button class="btn-delete" @click="deleteReport(item)">🗑️ 删除</button>
-        </div>
       </div>
     </div>
+
+    <!-- WeChat Modal -->
+    <teleport to="body">
+      <div v-if="showWechatModal" class="modal-overlay" @click.self="showWechatModal = false">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Publish to WeChat</h3>
+            <button class="close-btn" @click="showWechatModal = false">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Theme Style</label>
+              <select v-model="wechatTheme" class="form-select">
+                <option value="tech">Tech (Blue Gradient)</option>
+                <option value="minimal">Minimal (Monochrome)</option>
+                <option value="business">Business (Dark Blue & Gold)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Author</label>
+              <input v-model="wechatAuthor" type="text" class="form-input" placeholder="Paper Agent" />
+            </div>
+            <div class="form-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <p>The converted HTML will be saved to <code>output/wechat/</code></p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" @click="showWechatModal = false">Cancel</button>
+            <button class="btn-primary" @click="convertToWechat" :disabled="isConverting">
+              {{ isConverting ? 'Converting...' : 'Convert to HTML' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- HTML Preview Modal -->
+    <teleport to="body">
+      <div v-if="showHtmlPreview" class="modal-overlay" @click.self="closeHtmlPreview">
+        <div class="modal-content large">
+          <div class="modal-header">
+            <h3>HTML Preview</h3>
+            <button class="close-btn" @click="closeHtmlPreview">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="preview-actions">
+              <button class="action-btn" @click="copyHtmlContent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                Copy HTML
+              </button>
+            </div>
+            <div class="html-preview" v-html="previewHtmlContent"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" @click="closeHtmlPreview">Close</button>
+          </div>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -177,12 +253,11 @@ const editContent = ref('')
 const isEditing = ref(false)
 const isModified = ref(false)
 
-// 微信公众号相关
+// WeChat modal
 const showWechatModal = ref(false)
 const wechatTheme = ref('tech')
 const wechatAuthor = ref('Paper Agent')
 const isConverting = ref(false)
-const isPublishing = ref(false)
 const showHtmlPreview = ref(false)
 const previewHtmlContent = ref('')
 const currentHtmlPath = ref('')
@@ -197,10 +272,10 @@ const loadHistory = async () => {
   isLoading.value = true
   try {
     const res = await fetch('/api/reports')
-    if (!res.ok) throw new Error('加载失败')
+    if (!res.ok) throw new Error('Failed to load')
     historyList.value = await res.json()
   } catch (error) {
-    console.error('加载历史报告失败:', error)
+    console.error('Failed to load history:', error)
     historyList.value = []
   } finally {
     isLoading.value = false
@@ -211,14 +286,14 @@ const viewReport = async (item) => {
   isLoading.value = true
   try {
     const res = await fetch(`/api/reports/${encodeURIComponent(item.filename)}`)
-    if (!res.ok) throw new Error('加载报告失败')
+    if (!res.ok) throw new Error('Failed to load report')
     selectedReport.value = await res.json()
     editContent.value = selectedReport.value.content
     isEditing.value = false
     isModified.value = false
   } catch (error) {
-    console.error('加载报告详情失败:', error)
-    alert('加载报告失败，请重试')
+    console.error('Failed to load report:', error)
+    alert('Failed to load report')
   } finally {
     isLoading.value = false
   }
@@ -236,38 +311,36 @@ const saveReport = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: editContent.value })
     })
-    if (!res.ok) throw new Error('保存失败')
+    if (!res.ok) throw new Error('Failed to save')
     selectedReport.value.content = editContent.value
     isModified.value = false
-    alert('保存成功')
   } catch (error) {
-    console.error('保存报告失败:', error)
-    alert('保存失败，请重试')
+    console.error('Failed to save:', error)
+    alert('Failed to save report')
   }
 }
 
 const copyReport = () => {
   const content = editContent.value || selectedReport.value?.content || ''
   navigator.clipboard.writeText(content)
-  alert('已复制到剪贴板')
 }
 
 const deleteReport = async (item) => {
-  if (!confirm(`确定要删除报告"${item.title}"吗？此操作不可恢复。`)) return
+  if (!confirm(`Delete report "${item.title}"? This cannot be undone.`)) return
   try {
     const res = await fetch(`/api/reports/${encodeURIComponent(item.filename)}`, {
       method: 'DELETE'
     })
-    if (!res.ok) throw new Error('删除失败')
+    if (!res.ok) throw new Error('Failed to delete')
     historyList.value = historyList.value.filter(h => h.filename !== item.filename)
   } catch (error) {
-    console.error('删除报告失败:', error)
-    alert('删除失败，请重试')
+    console.error('Failed to delete:', error)
+    alert('Failed to delete report')
   }
 }
 
 const closeReport = () => {
-  if (isModified.value && !confirm('有未保存的修改，确定返回吗？')) return
+  if (isModified.value && !confirm('You have unsaved changes. Discard them?')) return
   selectedReport.value = null
   isEditing.value = false
   isModified.value = false
@@ -283,14 +356,9 @@ const goToCreate = () => {
   router.push('/')
 }
 
-// 微信公众号功能
-const closeWechatModal = () => {
-  showWechatModal.value = false
-}
-
+// WeChat functions
 const convertToWechat = async () => {
   if (!selectedReport.value) return
-
   isConverting.value = true
   try {
     const res = await fetch('/api/wechat/convert-report', {
@@ -301,80 +369,17 @@ const convertToWechat = async () => {
         theme: wechatTheme.value
       })
     })
-
-    if (!res.ok) {
-      const error = await res.json()
-      throw new Error(error.detail || '转换失败')
-    }
-
+    if (!res.ok) throw new Error('Conversion failed')
     const result = await res.json()
     previewHtmlContent.value = result.html_content
     currentHtmlPath.value = result.html_path
-
-    alert(`✅ 转换成功！\n\n文件已保存到: ${result.html_path}\n\n点击"在浏览器中打开"预览效果`)
     showWechatModal.value = false
     showHtmlPreview.value = true
-
   } catch (error) {
-    console.error('转换失败:', error)
-    alert(`转换失败: ${error.message}`)
+    console.error('Conversion failed:', error)
+    alert('Conversion failed')
   } finally {
     isConverting.value = false
-  }
-}
-
-const publishToWechat = async () => {
-  if (!selectedReport.value) return
-
-  if (!confirm('确定要发布到微信公众号草稿箱吗？\n\n请确保已配置微信公众号 AppID 和 AppSecret')) {
-    return
-  }
-
-  isPublishing.value = true
-  try {
-    // 先转换为 HTML
-    const convertRes = await fetch('/api/wechat/convert-report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        filename: selectedReport.value.filename,
-        theme: wechatTheme.value
-      })
-    })
-
-    if (!convertRes.ok) {
-      const error = await convertRes.json()
-      throw new Error(error.detail || '转换失败')
-    }
-
-    const convertResult = await convertRes.json()
-
-    // 发布到微信
-    const publishRes = await fetch('/api/wechat/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: selectedReport.value.title,
-        html_content: convertResult.html_content,
-        author: wechatAuthor.value
-      })
-    })
-
-    if (!publishRes.ok) {
-      const error = await publishRes.json()
-      throw new Error(error.detail || '发布失败')
-    }
-
-    const publishResult = await publishRes.json()
-
-    alert(`🎉 发布成功！\n\n文章已保存到微信公众号草稿箱\nmedia_id: ${publishResult.result.media_id}\n\n请前往微信公众号后台查看`)
-    showWechatModal.value = false
-
-  } catch (error) {
-    console.error('发布失败:', error)
-    alert(`发布失败: ${error.message}\n\n请检查:\n1. 是否已配置微信公众号凭证\n2. 网络连接是否正常\n3. 查看控制台获取详细错误信息`)
-  } finally {
-    isPublishing.value = false
   }
 }
 
@@ -384,13 +389,6 @@ const closeHtmlPreview = () => {
 
 const copyHtmlContent = () => {
   navigator.clipboard.writeText(previewHtmlContent.value)
-  alert('✅ HTML 内容已复制到剪贴板\n\n你可以直接粘贴到微信公众号编辑器')
-}
-
-const openHtmlFile = () => {
-  if (currentHtmlPath.value) {
-    alert(`请在文件管理器中打开:\n${currentHtmlPath.value}\n\n然后用浏览器打开该文件`)
-  }
 }
 
 onMounted(() => {
@@ -399,665 +397,646 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.history-container {
-  max-width: 1200px;
+.history-studio {
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: fadeInUp var(--transition-slow);
 }
 
-.page-header {
+/* Header */
+.studio-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e9ecef;
+  align-items: flex-start;
+  margin-bottom: var(--space-8);
 }
 
-.page-header h1 {
-  margin: 0;
-  font-size: clamp(24px, 3vw, 32px);
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
 }
 
-.btn-refresh {
-  padding: 10px 20px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+.title-accent {
+  color: var(--color-accent-primary);
+}
+
+.page-subtitle {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
-.btn-refresh:hover:not(:disabled) {
-  background: #2980b9;
-  transform: translateY(-1px);
+.refresh-btn:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
 }
 
-.btn-refresh:disabled {
-  background: #bdc3c7;
+.refresh-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 加载状态 */
+.refresh-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.refresh-btn svg.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Content Wrapper */
+.content-wrapper {
+  min-height: 500px;
+}
+
+/* Loading State */
 .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60px 20px;
-  color: #6c757d;
+  justify-content: center;
+  padding: var(--space-20);
+  color: var(--color-text-muted);
 }
 
-.spinner {
+.loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 3px solid var(--color-bg-elevated);
+  border-top-color: var(--color-accent-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 空状态 */
+/* Empty State */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 20px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  color: #6c757d;
+  justify-content: center;
+  padding: var(--space-20);
+  text-align: center;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6);
+}
+
+.empty-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.empty-state h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
 }
 
 .empty-state p {
-  margin: 0 0 20px 0;
-  font-size: 16px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6);
 }
 
-.btn-create {
-  background: #3498db;
-  color: white;
-  padding: 12px 24px;
+.primary-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-lg);
+  color: var(--color-bg-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
-.btn-create:hover {
-  background: #2980b9;
-}
-
-/* 报告列表 */
-.history-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
-}
-
-.history-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  border: 1px solid #e9ecef;
-}
-
-.history-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+.primary-btn:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.primary-btn svg {
+  width: 18px;
+  height: 18px);
+}
+
+/* Reports Grid */
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-5);
+}
+
+.report-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.report-card:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent-glow);
+  border-radius: var(--radius-lg);
+  color: var(--color-accent-primary);
+}
+
+.card-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.delete-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0;
+}
+
+.report-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: var(--color-error-bg);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.delete-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.card-content {
+  margin-bottom: var(--space-4);
 }
 
 .report-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.report-icon { font-size: 20px; }
-
-.title-text {
-  font-size: 16px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.card-content { margin-bottom: 16px; }
-
-.report-query { margin-bottom: 12px; }
-
-.report-query .label {
-  display: block;
-  font-size: 12px;
-  color: #6c757d;
-  margin-bottom: 4px;
+.report-query {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.report-query .content {
-  display: block;
-  font-size: 14px;
-  color: #2c3e50;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.report-meta {
+.card-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
-.meta-item {
+.footer-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #6c757d;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #e9ecef;
+.footer-item svg {
+  width: 14px;
+  height: 14px;
 }
 
-.btn-view, .btn-delete {
-  flex: 1;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-view {
-  background: #e3f2fd;
-  color: #3498db;
-}
-
-.btn-view:hover {
-  background: #3498db;
-  color: white;
-}
-
-.btn-delete {
-  background: #f8f9fa;
-  color: #dc3545;
-  border: 1px solid #e9ecef;
-}
-
-.btn-delete:hover {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
-}
-
-/* 报告详情 */
-.report-detail {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+/* Detail View */
+.detail-view {
+  animation: fadeInUp var(--transition-base);
 }
 
 .detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  flex-wrap: wrap;
-  gap: 12px;
+  margin-bottom: var(--space-6);
 }
 
-.btn-back {
-  padding: 8px 16px;
-  background: none;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  color: #495057;
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
-.btn-back:hover {
-  background: #e9ecef;
+.back-btn:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.back-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .detail-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
-.btn-toggle-edit, .btn-save, .btn-copy {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
-.btn-toggle-edit {
-  background: #e3f2fd;
-  color: #3498db;
+.action-btn:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
 }
 
-.btn-toggle-edit.active {
-  background: #3498db;
-  color: white;
+.action-btn.active {
+  background: var(--color-accent-glow);
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
 }
 
-.btn-save {
-  background: #27ae60;
-  color: white;
+.action-btn.primary {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--color-bg-primary);
 }
 
-.btn-save:hover {
-  background: #219653;
+.action-btn.primary:hover {
+  background: var(--color-accent-hover);
 }
 
-.btn-copy {
-  background: #f0f0f0;
-  color: #555;
+.action-btn.wechat {
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
-.btn-copy:hover {
-  background: #ddd;
-}
-
-.btn-wechat {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #07c160;
-  color: white;
-}
-
-.btn-wechat:hover {
-  background: #06ad56;
-  transform: translateY(-1px);
+.action-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .detail-meta {
   display: flex;
-  gap: 12px;
-  padding: 12px 24px;
-  background: #fafbfc;
-  border-bottom: 1px solid #e9ecef;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.meta-tag {
-  font-size: 13px;
-  color: #6c757d;
-  background: #e9ecef;
-  padding: 4px 12px;
-  border-radius: 12px;
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
-.meta-tag.warning {
-  background: #fff3cd;
-  color: #856404;
+.meta-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-accent-primary);
 }
 
-/* 编辑器 */
-.editor-container {
-  padding: 0;
+.meta-item.query {
+  flex: 1;
 }
 
-.markdown-editor {
+.modified-badge {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+}
+
+.detail-content {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.content-editor {
   width: 100%;
   min-height: 600px;
-  padding: 24px;
+  padding: var(--space-6);
+  background: var(--color-bg-secondary);
   border: none;
-  outline: none;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   line-height: 1.7;
   resize: vertical;
-  box-sizing: border-box;
-  background: #fefefe;
 }
 
-.markdown-editor:focus {
-  background: #fffff8;
+.content-editor:focus {
+  outline: none;
 }
 
-/* 预览 */
-.preview-container {
-  padding: 24px 32px;
-  min-height: 400px;
+.content-preview {
+  padding: var(--space-6);
+  min-height: 600px;
 }
 
-/* Markdown 渲染样式 */
-.markdown-body {
-  line-height: 1.7;
-  color: #2d3748;
-  word-break: break-word;
-}
-
-.markdown-body h1, .markdown-body h2, .markdown-body h3 {
-  margin-top: 24px;
-  margin-bottom: 16px;
-  font-weight: 600;
-  line-height: 1.25;
-  color: #1a202c;
-}
-
-.markdown-body h1 { font-size: 2em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-.markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #edf2f7; padding-bottom: 6px; }
-.markdown-body h3 { font-size: 1.25em; }
-
-.markdown-body p { margin-top: 0; margin-bottom: 16px; }
-
-.markdown-body ul, .markdown-body ol {
-  padding-left: 2em;
-  margin-bottom: 16px;
-}
-
-.markdown-body strong { font-weight: 600; }
-
-.markdown-body code {
-  padding: 0.2em 0.4em;
-  background: rgba(27, 31, 35, 0.05);
-  border-radius: 3px;
-  font-size: 85%;
-}
-
-.markdown-body blockquote {
-  padding: 0 1em;
-  color: #6a737d;
-  border-left: 4px solid #dfe2e5;
-  margin: 0 0 16px 0;
-}
-
-.markdown-body a {
-  color: #3498db;
-  text-decoration: none;
-}
-
-.markdown-body a:hover {
-  text-decoration: underline;
-}
-
-.markdown-body hr {
-  border: none;
-  border-top: 2px solid #e2e8f0;
-  margin: 24px 0;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .history-container { padding: 15px; }
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .history-list { grid-template-columns: 1fr; }
-  .detail-header { flex-direction: column; }
-  .detail-actions { width: 100%; justify-content: flex-end; }
-  .preview-container { padding: 16px; }
-  .markdown-editor { padding: 16px; min-height: 400px; }
-}
-
-@media (max-width: 480px) {
-  .history-container { padding: 12px; }
-  .page-header h1 { font-size: 24px; }
-  .history-card { padding: 16px; }
-  .card-actions { flex-direction: column; }
-}
-
-/* 微信公众号弹窗样式 */
+/* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
+  z-index: 100;
+  animation: fadeIn var(--transition-fast);
+  padding: var(--space-4);
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  max-width: 600px;
   width: 100%;
-  max-height: 90vh;
-  overflow: auto;
+  max-width: 500px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  animation: fadeInUp var(--transition-base);
 }
 
-.modal-large {
+.modal-content.large {
   max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 20px;
+.modal-header h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary);
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #6c757d;
-  cursor: pointer;
-  padding: 0;
+.close-btn {
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xl);
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.btn-close:hover {
-  background: #f8f9fa;
-  color: #2c3e50;
+.close-btn:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .modal-body {
-  padding: 24px;
+  padding: var(--space-5);
+  overflow-y: auto;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--color-text-secondary);
 }
 
-.form-select, .form-input {
+.form-select,
+.form-input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: all 0.2s;
-  box-sizing: border-box;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  transition: all var(--transition-fast);
 }
 
-.form-select:focus, .form-input:focus {
+.form-select:focus,
+.form-input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--color-accent-primary);
 }
 
-.preview-info {
-  background: #f8f9fa;
-  padding: 16px;
-  border-radius: 8px;
-  margin-top: 16px;
+.form-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
-.preview-info p {
-  margin: 8px 0;
-  font-size: 13px;
-  color: #6c757d;
-  line-height: 1.6;
+.form-info svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-accent-primary);
 }
 
-.preview-info code {
-  background: #e9ecef;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: 'Consolas', monospace;
-  font-size: 12px;
+.form-info code {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid #e9ecef;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-top: 1px solid var(--color-border);
 }
 
-.btn-primary, .btn-secondary, .btn-success {
-  padding: 10px 20px;
+.btn-secondary,
+.btn-primary {
+  padding: var(--space-3) var(--space-5);
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #3498db;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  transition: all var(--transition-fast);
 }
 
 .btn-secondary {
-  background: #f8f9fa;
-  color: #6c757d;
-  border: 1px solid #dee2e6;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
 }
 
 .btn-secondary:hover {
-  background: #e9ecef;
+  color: var(--color-text-primary);
 }
 
-.btn-success {
-  background: #07c160;
-  color: white;
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  color: var(--color-bg-primary);
 }
 
-.btn-success:hover:not(:disabled) {
-  background: #06ad56;
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
 }
 
-.btn-primary:disabled, .btn-success:disabled {
-  background: #bdc3c7;
+.btn-primary:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* HTML 预览样式 */
-.html-preview-actions {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+/* Preview Modal */
+.preview-actions {
+  margin-bottom: var(--space-4);
 }
 
-.btn-copy-html, .btn-open-file {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-copy-html {
-  background: #3498db;
-  color: white;
-}
-
-.btn-copy-html:hover {
-  background: #2980b9;
-}
-
-.btn-open-file {
-  background: #f8f9fa;
-  color: #6c757d;
-  border: 1px solid #dee2e6;
-}
-
-.btn-open-file:hover {
-  background: #e9ecef;
-}
-
-.html-preview-container {
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 20px;
-  background: #fafbfc;
+.html-preview {
   max-height: 500px;
-  overflow: auto;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
 }
 
+/* Responsive */
+@media (max-width: 1024px) {
+  .reports-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .studio-header {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .detail-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .meta-item.query {
+    width: 100%;
+  }
+}
 </style>

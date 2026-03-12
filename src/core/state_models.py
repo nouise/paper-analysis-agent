@@ -33,9 +33,17 @@ class ExecutionState(str, Enum):
 # ============================================================
 
 class BackToFrontData(BaseModel):
-    step: str
-    state: str
-    data: Any = None
+    """SSE 前后端通信数据结构"""
+    step: str = Field(description="环节名称")
+    state: str = Field(description="环节状态")
+    data: Any = Field(default=None, description="原始数据（向后兼容）")
+    # 新增字段用于折叠面板展示
+    summary: Optional[str] = Field(default=None, description="环节摘要")
+    detail: Optional[str] = Field(default=None, description="详细内容")
+    stream_content: Optional[str] = Field(default=None, description="流式输出内容片段")
+    progress: int = Field(default=0, description="进度百分比 (0-100)")
+    collapsible: bool = Field(default=True, description="是否可折叠")
+    default_collapsed: bool = Field(default=False, description="默认是否折叠")
 
 
 # ============================================================

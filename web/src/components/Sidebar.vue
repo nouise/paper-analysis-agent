@@ -1,378 +1,263 @@
 <template>
-  <div 
-    class="sidebar" 
-    :class="{ 'collapsed': collapsed, 'mobile': isMobile }"
-  >
-    <div class="sidebar-header">
-      <div class="logo" v-if="!collapsed">
-        <span class="logo-icon">📊</span>
-        <span class="logo-text">Paper Agent</span>
+  <aside class="sidebar" :class="{ 'collapsed': collapsed }">
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
       </div>
-      <button 
-        class="toggle-btn"
-        @click="$emit('toggle')"
-        :title="collapsed ? '展开侧边栏' : '折叠侧边栏'"
-      >
-        {{ collapsed ? '→' : '←' }}
-      </button>
+      <div class="brand-text" v-if="!collapsed">
+        <span class="brand-title">Paper Agent</span>
+        <span class="brand-subtitle">Research Atelier</span>
+      </div>
     </div>
 
+    <!-- Navigation -->
     <nav class="sidebar-nav">
-      <div 
-        v-for="item in menuItems" 
-        :key="item.path"
-        class="nav-item"
-        :class="{ 'active': isActive(item.path), 'has-children': item.children }"
-      >
-        <div 
-          class="nav-item-header"
-          @click="item.children ? toggleChildren(item) : navigate(item.path)"
+      <div class="nav-section">
+        <span class="nav-label" v-if="!collapsed">Research</span>
+        <div
+          v-for="item in menuItems"
+          :key="item.path"
+          class="nav-item"
+          :class="{ 'active': isActive(item.path) }"
+          @click="navigate(item.path)"
         >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-text" v-if="!collapsed">{{ item.title }}</span>
-          <span 
-            class="expand-icon" 
-            v-if="item.children && !collapsed"
-            :class="{ 'expanded': item.expanded }"
-          >
-            ▼
-          </span>
-        </div>
-
-        <div 
-          class="nav-children" 
-          v-if="item.children && item.expanded && !collapsed"
-        >
-          <div 
-            v-for="child in item.children" 
-            :key="child.path"
-            class="nav-child-item"
-            :class="{ 'active': isActive(child.path) }"
-            @click="navigate(child.path)"
-          >
-            <span class="nav-icon">{{ child.icon }}</span>
-            <span class="nav-text">{{ child.title }}</span>
+          <div class="nav-icon-wrapper">
+            <component :is="item.icon" class="nav-icon" />
           </div>
+          <span class="nav-text" v-if="!collapsed">{{ item.title }}</span>
+          <div class="nav-indicator" v-if="isActive(item.path)"></div>
         </div>
       </div>
     </nav>
 
-    <div class="sidebar-footer" v-if="!collapsed">
-      <div class="user-info">
-        <span class="user-avatar">👤</span>
-        <span class="user-name">用户</span>
-      </div>
-    </div>
-  </div>
+    <!-- Toggle Button -->
+    <button class="toggle-btn" @click="toggle" :title="collapsed ? 'Expand' : 'Collapse'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'flipped': collapsed }">
+        <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
+      </svg>
+    </button>
+  </aside>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+// Icon Components
+const IconHome = {
+  template: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`
+}
+
+const IconHistory = {
+  template: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
+}
+
+const IconLibrary = {
+  template: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`
+}
 
 const props = defineProps({
-  collapsed: {
-    type: Boolean,
-    default: false
-  },
-  isMobile: {
-    type: Boolean,
-    default: false
-  }
+  collapsed: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['toggle', 'navigate'])
+const emit = defineEmits(['toggle'])
 
 const route = useRoute()
+const router = useRouter()
 
-const menuItems = ref([
-  {
-    title: '报告生成',
-    path: '/',
-    icon: '📝',
-    children: [
-      {
-        title: '新建报告',
-        path: '/',
-        icon: '➕'
-      },
-      {
-        title: '历史报告',
-        path: '/history',
-        icon: '📚'
-      }
-    ],
-    expanded: true
-  },
-  {
-    title: '知识库管理',
-    path: '/knowledge',
-    icon: '🗄️',
-    expanded: false
-  }
-])
+const menuItems = [
+  { title: 'New Research', path: '/', icon: IconHome },
+  { title: 'History', path: '/history', icon: IconHistory },
+  { title: 'Library', path: '/knowledge', icon: IconLibrary }
+]
 
-const isActive = (path) => {
-  return route.path === path || route.path.startsWith(path + '/')
-}
+const isActive = (path) => route.path === path
 
-const toggleChildren = (item) => {
-  item.expanded = !item.expanded
-}
-
-const navigate = (path) => {
-  emit('navigate', path)
-}
+const toggle = () => emit('toggle')
+const navigate = (path) => router.push(path)
 </script>
 
 <style scoped>
 .sidebar {
-  width: 12%;
-  min-width: 200px;
-  max-width: 280px;
+  width: 260px;
   height: 100%;
-  background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   position: relative;
-  z-index: 1000;
+  transition: width var(--transition-slow);
+  flex-shrink: 0;
 }
 
 .sidebar.collapsed {
-  width: 70px;
-  min-width: 70px;
-  max-width: 70px;
+  width: 72px;
 }
 
-.sidebar.mobile {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 2000;
-}
-
-.sidebar.mobile.collapsed {
-  transform: translateX(-100%);
-}
-
-.sidebar-header {
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* Brand */
+.sidebar-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 70px;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: opacity 0.3s ease;
-}
-
-.logo-icon {
-  font-size: 24px;
-}
-
-.logo-text {
-  color: white;
-  font-size: 18px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.toggle-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  cursor: pointer;
+.brand-icon {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  font-size: 16px;
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  border-radius: var(--radius-lg);
+  color: var(--color-bg-primary);
+  flex-shrink: 0;
 }
 
-.toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+.brand-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
-.toggle-btn:active {
-  transform: scale(0.95);
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity var(--transition-base);
 }
 
-.sidebar.collapsed .toggle-btn {
-  margin: 0 auto;
+.sidebar.collapsed .brand-text {
+  opacity: 0;
+  width: 0;
 }
 
+.brand-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.brand-subtitle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Navigation */
 .sidebar-nav {
   flex: 1;
+  padding: var(--space-6) var(--space-4);
   overflow-y: auto;
-  padding: 10px 0;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.nav-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .nav-item {
-  margin: 4px 10px;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.nav-item-header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  transition: all 0.2s ease;
-  border-radius: 8px;
   position: relative;
+  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
 }
 
-.nav-item-header:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+.nav-item:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
 }
 
-.nav-item-header:active {
-  transform: scale(0.98);
+.nav-item.active {
+  background: var(--color-accent-glow);
+  color: var(--color-accent-primary);
 }
 
-.nav-item.active > .nav-item-header {
-  background: rgba(52, 152, 219, 0.3);
-  color: white;
+.nav-icon-wrapper {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-text {
+  font-size: var(--text-sm);
   font-weight: 500;
+  transition: opacity var(--transition-base);
 }
 
-.nav-item.active > .nav-item-header::before {
-  content: '';
+.nav-indicator {
   position: absolute;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 4px;
-  height: 60%;
-  background: #3498db;
-  border-radius: 0 4px 4px 0;
+  width: 3px;
+  height: 20px;
+  background: var(--color-accent-primary);
+  border-radius: 0 3px 3px 0;
 }
 
-.nav-icon {
-  font-size: 18px;
-  min-width: 24px;
-  text-align: center;
-}
-
-.nav-text {
-  flex: 1;
-  margin-left: 12px;
-  white-space: nowrap;
-  transition: opacity 0.2s ease;
-}
-
-.sidebar.collapsed .nav-text {
-  display: none;
-}
-
-.expand-icon {
-  font-size: 10px;
-  transition: transform 0.3s ease;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.expand-icon.expanded {
-  transform: rotate(180deg);
-}
-
-.nav-children {
-  margin-top: 4px;
-  padding-left: 12px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 0 0 8px 8px;
-}
-
-.nav-child-item {
+/* Toggle Button */
+.toggle-btn {
+  position: absolute;
+  right: -12px;
+  top: 80px;
+  width: 24px;
+  height: 24px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  justify-content: center;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
-  transition: all 0.2s ease;
-  border-radius: 6px;
-  margin: 2px 0;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+  z-index: 10;
 }
 
-.nav-child-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+.toggle-btn:hover {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--color-bg-primary);
 }
 
-.nav-child-item.active {
-  background: rgba(52, 152, 219, 0.4);
-  color: white;
-  font-weight: 500;
+.toggle-btn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--transition-base);
 }
 
-.nav-child-item .nav-icon {
-  font-size: 14px;
-}
-
-.sidebar-footer {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.user-avatar {
-  font-size: 24px;
-}
-
-.user-name {
-  font-size: 14px;
-}
-
-.sidebar.collapsed .sidebar-footer {
-  display: none;
-}
-
-.sidebar-nav::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-nav::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    width: 280px;
-    min-width: 280px;
-    max-width: 280px;
-  }
-
-  .sidebar.collapsed {
-    transform: translateX(-100%);
-  }
+.toggle-btn svg.flipped {
+  transform: rotate(180deg);
 }
 </style>

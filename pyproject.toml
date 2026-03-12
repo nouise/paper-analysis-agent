@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "AI-driven academic research report generation system"
 authors = ["nouise"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
@@ -49,3 +50,8 @@ priority = "primary"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "playwright (>=1.58.0,<2.0.0)"
+]

@@ -312,7 +312,11 @@ async def reading_node(state: State) -> State:
 
     await state_queue.put(BackToFrontData(
         step=ExecutionState.READING,
-        state="initializing"
+        state="initializing",
+        summary="正在初始化阅读...",
+        detail="准备阅读论文列表...",
+        data="正在初始化阅读...",
+        progress=0
     ))
 
     # 记录指标
@@ -326,7 +330,10 @@ async def reading_node(state: State) -> State:
                 await state_queue.put(BackToFrontData(
                     step=ExecutionState.READING,
                     state="completed",
-                    data="没有论文可供阅读"
+                    summary="无可阅读论文",
+                    detail="搜索未返回论文，跳过阅读环节",
+                    data="没有论文可供阅读",
+                    progress=100
                 ))
                 return {"value": current_state}
 
@@ -355,7 +362,10 @@ async def reading_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.READING,
                 state="completed",
-                data=f"论文阅读完成，成功提取 {success_count} 篇"
+                summary=f"阅读完成 ({success_count}/{len(papers)})",
+                detail=f"成功提取 {success_count} 篇，失败 {fail_count} 篇",
+                data=f"论文阅读完成，成功提取 {success_count} 篇",
+                progress=100
             ))
 
             return {"value": current_state}
@@ -369,6 +379,9 @@ async def reading_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.READING,
                 state="error",
-                data=err_msg
+                summary="阅读失败",
+                detail=err_msg,
+                data=err_msg,
+                progress=100
             ))
             return {"value": current_state}

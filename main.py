@@ -220,9 +220,16 @@ async def send_input(data: UserInputRequest):
 # ============================================================
 
 @app.get('/api/research')
-async def research_stream(query: str):
+async def research_stream(
+    query: str,
+    max_papers: int = Query(default=10, ge=1, le=50, description="最大论文数量 (1-50)")
+):
     """
     启动研究流程，返回 SSE 事件流
+
+    参数:
+        query: 研究主题查询
+        max_papers: 最大论文数量，默认 10，范围 1-50
 
     事件格式: {"step": "...", "state": "...", "data": "..."}
 
@@ -254,7 +261,10 @@ async def research_stream(query: str):
 
         # 启动工作流任务
         workflow_task = asyncio.create_task(
-            orchestrator.run(user_request=query),
+            orchestrator.run(
+                user_request=query,
+                max_papers=max_papers
+            ),
             name=f"workflow_{request_id}"
         )
 

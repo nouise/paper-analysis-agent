@@ -22,6 +22,8 @@ logger = setup_logger(__name__)
 SUPPORTED_FILE_EXTENSIONS: tuple[str, ...] = (
     ".txt",
     ".md",
+    ".markdown",
+    ".pdf",
     ".doc",
     ".docx",
     ".html",

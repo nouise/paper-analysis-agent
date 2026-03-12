@@ -130,7 +130,7 @@ class PaperAgentOrchestrator:
     async def run(
         self,
         user_request: str,
-        max_papers: int = 5,
+        max_papers: int = 10,
         config: Optional[Dict[str, Any]] = None
     ):
         """

@@ -77,7 +77,11 @@ async def search_node(state: State) -> State:
 
     await state_queue.put(BackToFrontData(
         step=ExecutionState.SEARCHING,
-        state="initializing"
+        state="initializing",
+        summary="正在初始化搜索...",
+        detail="准备搜索参数和连接...",
+        data="正在初始化搜索...",
+        progress=0
     ))
 
     with metrics.timer("search_node_total"):
@@ -114,7 +118,10 @@ async def search_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.SEARCHING,
                 state="user_review",
-                data=review_data
+                summary="等待用户审核搜索关键词",
+                detail=review_data,
+                data=review_data,  # 向后兼容
+                collapsible=False  # 审核环节不允许折叠
             ))
 
             logger.info("[Search] 等待用户审核搜索关键词...")
@@ -160,7 +167,10 @@ async def search_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.SEARCHING,
                 state="generating",
-                data=f"正在使用关键词 {search_query.querys} 搜索论文..."
+                summary="正在搜索论文...",
+                detail=f"使用关键词: {', '.join(search_query.querys)}",
+                data=f"正在使用关键词 {search_query.querys} 搜索论文...",
+                progress=30
             ))
 
             # 4. 调用 arXiv API
@@ -196,14 +206,20 @@ async def search_node(state: State) -> State:
                 await state_queue.put(BackToFrontData(
                     step=ExecutionState.SEARCHING,
                     state="error",
-                    data="没有找到相关论文"
+                    summary="未找到论文",
+                    detail="未找到与查询相关的论文，请尝试修改关键词",
+                    data="没有找到相关论文",
+                    progress=100
                 ))
                 metrics.increment("search_no_results")
             else:
                 await state_queue.put(BackToFrontData(
                     step=ExecutionState.SEARCHING,
                     state="completed",
-                    data=f"找到 {len(results)} 篇论文"
+                    summary=f"找到 {len(results)} 篇论文",
+                    detail=f"使用关键词: {', '.join(search_query.querys)}\\n时间范围: {search_query.start_date or '无限制'} ~ {search_query.end_date or '无限制'}",
+                    data=f"找到 {len(results)} 篇论文",
+                    progress=100
                 ))
                 metrics.increment("search_success")
 
@@ -218,6 +234,9 @@ async def search_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.SEARCHING,
                 state="error",
-                data=err_msg
+                summary="搜索失败",
+                detail=err_msg,
+                data=err_msg,
+                progress=100
             ))
             return {"value": current_state}

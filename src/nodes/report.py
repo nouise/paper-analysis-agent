@@ -60,7 +60,13 @@ async def report_node(state: State) -> State:
     state_queue = state["state_queue"]
     current_state = state["value"]
     current_state.current_step = ExecutionState.REPORTING
-    await state_queue.put(BackToFrontData(step=ExecutionState.REPORTING, state="initializing"))
+    await state_queue.put(BackToFrontData(
+        step=ExecutionState.REPORTING,
+        state="initializing",
+        summary="正在初始化报告...",
+        detail="准备整合章节内容为完整报告...",
+        progress=0
+    ))
 
     try:
         sections = current_state.writted_sections
@@ -102,7 +108,10 @@ async def report_node(state: State) -> State:
         await state_queue.put(BackToFrontData(
             step=ExecutionState.REPORTING,
             state="completed",
-            data=report_md
+            summary="报告生成完成",
+            detail=f"报告已生成，共 {len(report_md)} 字，已保存到本地",
+            data=report_md,
+            progress=100
         ))
         return {"value": current_state}
 
@@ -110,5 +119,12 @@ async def report_node(state: State) -> State:
         err_msg = f"Report failed: {e}"
         logger.error(err_msg)
         current_state.error.report_node_error = err_msg
-        await state_queue.put(BackToFrontData(step=ExecutionState.REPORTING, state="error", data=err_msg))
+        await state_queue.put(BackToFrontData(
+            step=ExecutionState.REPORTING,
+            state="error",
+            summary="报告生成失败",
+            detail=f"错误信息: {err_msg}",
+            data=err_msg,
+            progress=100
+        ))
         return {"value": current_state}

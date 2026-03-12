@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     allowedHosts: ['.natappfree.cc', '.natapp.cc'],
+    historyApiFallback: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8002',

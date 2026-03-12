@@ -223,7 +223,7 @@ cd Paper-Agent
 cp example.env .env
 # 编辑 .env，填入你的 API Key（至少需要 DASHSCOPE_API_KEY）
 
-poetry install
+poetry install --no-root
 ```
 
 ### 2. 安装前端依赖
@@ -235,10 +235,12 @@ npm install
 
 ### 3. 启动服务
 
-**启动后端**（默认端口 8000）：
+本项目推荐直接使用 Poetry 和 npm 命令手动启动，不依赖 `sh` / `bat` 脚本。
+
+**启动后端**（默认端口 8002）：
 
 ```bash
-poetry run uvicorn main:app --host 0.0.0.0 --port 8000
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 ```
 
 **启动前端**（默认端口 5173）：
@@ -249,6 +251,14 @@ npm run dev
 ```
 
 浏览器访问 `http://localhost:5173`，输入研究主题即可开始调研。
+
+可选检查：
+
+```bash
+curl http://localhost:8002/health
+```
+
+说明：当前前端代理配置默认转发到 `http://localhost:8002`，因此后端端口应与此前端配置保持一致。
 
 ---
 

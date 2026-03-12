@@ -12,6 +12,8 @@ from src.knowledge.knowledge.indexing import SUPPORTED_FILE_EXTENSIONS, is_suppo
 from src.knowledge.knowledge.utils import calculate_content_hash
 from src.utils import hashstr
 from src.utils.log_utils import setup_logger
+from src.utils.name_generator import generate_knowledge_base_name, get_available_styles
+from src.parsers.factory import ParserFactory, UnsupportedFormatError
 
 logger = setup_logger(__name__)
 
@@ -31,6 +33,36 @@ async def get_databases():
     except Exception as e:
         logger.error(f"获取数据库列表失败 {e}, {traceback.format_exc()}")
         return {"message": f"获取数据库列表失败 {e}", "databases": []}
+
+# 生成随机知识库名称
+@knowledge.get("/generate-name")
+async def generate_name(style: str = Query(default="academic", description="命名风格: academic/random/timestamp/simple")):
+    """生成随机知识库名称"""
+    try:
+        name = generate_knowledge_base_name(style)
+        return {
+            "status": "success",
+            "name": name,
+            "style": style
+        }
+    except ValueError as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "available_styles": get_available_styles()
+        }
+    except Exception as e:
+        logger.error(f"生成名称失败 {e}, {traceback.format_exc()}")
+        return {"status": "error", "message": f"生成名称失败: {e}"}
+
+# 获取可用的命名风格
+@knowledge.get("/name-styles")
+async def get_name_styles():
+    """获取可用的命名风格列表"""
+    return {
+        "status": "success",
+        "styles": get_available_styles()
+    }
 
 # 创建知识库
 @knowledge.post("/databases")
@@ -302,11 +334,30 @@ async def upload_file(
     with open(file_path, "wb") as buffer:
         buffer.write(file_bytes)
 
+    # 解析文档内容
+    parsed_content = None
+    parser_type = None
+    try:
+        if ParserFactory.is_supported(file_path):
+            parser = ParserFactory.get_parser(file_path)
+            result = await parser.parse_with_metadata(file_path)
+            parsed_content = result["content"]
+            parser_type = result["parser_type"]
+            logger.info(f"[Upload] 解析成功: {file.filename}, 类型: {parser_type}, 字数: {len(parsed_content)}")
+    except UnsupportedFormatError:
+        logger.info(f"[Upload] 文件不支持解析，仅上传: {file.filename}")
+    except Exception as e:
+        logger.warning(f"[Upload] 解析失败: {file.filename}, 错误: {e}")
+
     return {
         "message": "File successfully uploaded",
         "file_path": file_path,
         "db_id": db_id,
         "content_hash": content_hash,
+        "parsed": parsed_content is not None,
+        "parser_type": parser_type,
+        "content_length": len(parsed_content) if parsed_content else 0,
+        "content_preview": parsed_content[:500] if parsed_content else None,
     }
 
 

@@ -418,7 +418,11 @@ async def analyse_node(state: State) -> State:
 
     await state_queue.put(BackToFrontData(
         step=ExecutionState.ANALYZING,
-        state="initializing"
+        state="initializing",
+        summary="正在初始化分析...",
+        detail="准备分析论文数据，正在进行预处理...",
+        data="正在初始化分析...",
+        progress=0
     ))
 
     with metrics.timer("analyse_node_total"):
@@ -432,7 +436,10 @@ async def analyse_node(state: State) -> State:
                 await state_queue.put(BackToFrontData(
                     step=ExecutionState.ANALYZING,
                     state="error",
-                    data=err_msg
+                    summary="分析失败",
+                    detail=f"没有可分析的论文数据: {err_msg}",
+                    data=err_msg,
+                    progress=100
                 ))
                 return {"value": current_state}
 
@@ -443,7 +450,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="thinking",
-                data="正在进行论文聚类分析\n"
+                summary="正在分析论文...",
+                detail="正在进行论文聚类分析，识别研究主题...",
+                data="正在进行论文聚类分析\n",
+                progress=30
             ))
 
             clusters = _cluster_papers(papers_dicts)
@@ -459,7 +469,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="thinking",
-                data=f"聚类完成，共 {len(clusters)} 个聚类\n"
+                summary="正在分析论文...",
+                detail=f"聚类完成，共识别出 {len(clusters)} 个研究主题",
+                data=f"聚类完成，共 {len(clusters)} 个聚类\n",
+                progress=45
             ))
 
             # Step 2: 并行深度分析
@@ -467,7 +480,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="thinking",
-                data="正在进行深度分析\n"
+                summary="正在分析论文...",
+                detail=f"正在对 {len(clusters)} 个研究主题进行深度分析...",
+                data="正在进行深度分析\n",
+                progress=50
             ))
 
             # 使用信号量控制并发
@@ -485,7 +501,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="thinking",
-                data="深度分析完成\n"
+                summary="正在分析论文...",
+                detail="深度分析完成，正在进行全局汇总...",
+                data="深度分析完成\n",
+                progress=70
             ))
 
             # Step 3: 全局分析
@@ -493,7 +512,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="thinking",
-                data="正在进行全局分析\n"
+                summary="正在分析论文...",
+                detail="正在进行全局分析，生成综合分析报告...",
+                data="正在进行全局分析\n",
+                progress=85
             ))
 
             global_result = await _global_analyse(deep_results)
@@ -508,7 +530,10 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="completed",
-                data=current_state.analyse_results
+                summary="分析完成",
+                detail=f"分析完成！共分析了 {len(clusters)} 个研究主题，{sum(r.paper_count for r in deep_results)} 篇论文",
+                data=current_state.analyse_results,
+                progress=100
             ))
 
             metrics.increment("analyse_node_success")
@@ -523,6 +548,9 @@ async def analyse_node(state: State) -> State:
             await state_queue.put(BackToFrontData(
                 step=ExecutionState.ANALYZING,
                 state="error",
-                data=err_msg
+                summary="分析失败",
+                detail=f"分析过程中发生错误: {err_msg}",
+                data=err_msg,
+                progress=100
             ))
             return {"value": current_state}
