@@ -1,11 +1,184 @@
-# Findings - Paper Analysis Agent 技术调研
+# Findings - 本地运行问题诊断
 
 **项目**: Paper Analysis Agent
-**创建时间**: 2026-03-11
+**问题**: GitHub 更新后本地运行异常 (history/library 界面问题)
+**诊断时间**: 2026-03-12
 
 ---
 
-## 1. 现有架构调研
+## 问题诊断结果
+
+### 根本原因
+**后端 Python 依赖未安装**
+
+```
+ModuleNotFoundError: No module named 'fastapi'
+```
+
+用户在 Linux 服务器上部署并运行正常，但本地 Windows 环境缺少必要的 Python 依赖包。
+
+### 已确认的状态
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 代码同步 | ✅ OK | 与 origin/main 完全同步 |
+| 前端构建 | ✅ OK | dist/ 目录存在且已构建 |
+| 前端依赖 | ✅ OK | node_modules 存在 (212+ 包) |
+| 环境配置 | ✅ OK | .env 文件存在且有 API Key |
+| 后端依赖 | ❌ 缺失 | FastAPI、ChromaDB 等未安装 |
+
+### 缺失的依赖
+
+根据 `pyproject.toml`，需要安装：
+- fastapi (^0.116.1)
+- uvicorn (^0.35.0) - 已安装 ✅
+- chromadb (^1.0.20)
+- langgraph (^0.6.7)
+- pyautogen (^0.2.20)
+- 以及 20+ 其他依赖
+
+---
+
+## 解决方案
+
+### 方案一：使用 Poetry（推荐，与项目一致）
+
+```bash
+# 1. 安装 Poetry（如果未安装）
+curl -sSL https://install.python-poetry.org | python3 -
+# Windows PowerShell:
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+
+# 2. 在项目根目录安装依赖
+poetry install --no-root
+
+# 3. 运行后端
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+```
+
+### 方案二：使用 pip（快速方案）
+
+```bash
+# 1. 创建虚拟环境（可选但推荐）
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# 或 .venv\Scripts\activate  # Windows
+
+# 2. 安装核心依赖
+pip install fastapi uvicorn chromadb langgraph langchain \
+    langchain-community autogen pydantic sse-starlette
+
+# 3. 运行后端
+python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+```
+
+### 方案三：使用 requirements.txt（如果有）
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 完整启动步骤
+
+### 1. 启动后端
+
+```bash
+cd D:\2026\个人简历\InterestingWork\paper-analysis-agent
+
+# 使用 Poetry
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+
+# 或使用 pip
+python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+```
+
+### 2. 启动前端
+
+```bash
+cd web
+npm run dev
+```
+
+### 3. 访问应用
+
+- 前端: http://localhost:5173
+- 后端 API: http://localhost:8002
+
+---
+
+## 可能的后续问题
+
+### 问题 1: ChromaDB 数据库路径
+如果在 Windows 上首次运行，可能需要创建数据目录：
+
+```bash
+mkdir -p data/chroma
+```
+
+### 问题 2: 前端 API 代理配置
+检查 `web/vite.config.js` 中的代理配置：
+
+```javascript
+server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8002',
+      changeOrigin: true,
+    },
+    '/knowledge': {
+      target: 'http://localhost:8002',
+      changeOrigin: true,
+    }
+  }
+}
+```
+
+### 问题 3: 端口冲突
+如果 8002 或 5173 端口被占用：
+- 后端修改: `--port 8003`
+- 前端修改: 在 `vite.config.js` 中修改端口
+
+---
+
+## 验证步骤
+
+1. 后端启动后访问: http://localhost:8002/docs
+   - 应该看到 FastAPI 自动生成的 API 文档
+
+2. 前端启动后访问: http://localhost:5173
+   - 应该看到首页界面
+
+3. 测试 history 页面:
+   - 点击 History 菜单
+   - 应该正常加载历史报告列表
+
+4. 测试 library (KnowledgeBase) 页面:
+   - 点击 Library 菜单
+   - 应该正常加载知识库列表
+
+---
+
+## 技术决策
+| Decision | Rationale |
+|----------|-----------|
+| 推荐使用 Poetry | 与项目 pyproject.toml 保持一致，锁定依赖版本 |
+| pip 作为备选 | 适合快速测试，但可能缺少部分依赖 |
+| 不创建 requirements.txt | 项目使用 Poetry，维护单一依赖来源 |
+
+## 问题根源分析
+| Issue | Root Cause | Resolution |
+|-------|------------|------------|
+| history/library 页面异常 | 后端服务未启动，API 请求失败 | 安装依赖并启动后端服务 |
+| Linux 部署正常但本地不行 | Linux 环境已配置好 Poetry 和依赖 | 本地需要同样配置 |
+
+## Resources
+- 项目路径: `D:\2026\个人简历\InterestingWork\paper-analysis-agent`
+- 后端入口: `main.py`
+- 前端路径: `web/`
+- 依赖配置: `pyproject.toml`
+
 
 ### 1.1 后端技术栈
 

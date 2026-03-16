@@ -89,6 +89,22 @@
           <div class="panel-card">
             <div class="panel-card-header">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <h3>Documents</h3>
+            </div>
+            <DocumentList
+              ref="documentListRef"
+              :database-id="selectedDatabaseId"
+              @delete="handleDocumentDelete"
+              @error="showToast"
+            />
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="M21 21l-4.35-4.35"/>
               </svg>
@@ -156,6 +172,7 @@ import DatabaseCard from '../components/DatabaseCard.vue'
 import CreateDatabaseModal from '../components/CreateDatabaseModal.vue'
 import FileUpload from '../components/FileUpload.vue'
 import QueryTest from '../components/QueryTest.vue'
+import DocumentList from '../components/DocumentList.vue'
 
 const databases = ref([])
 const selectedDatabaseId = ref('')
@@ -165,6 +182,7 @@ const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingDatabase = ref(null)
 const queryTestRef = ref(null)
+const documentListRef = ref(null)
 
 const toast = ref({
   show: false,
@@ -176,7 +194,8 @@ const normalizeDatabase = (db) => {
   if (!db) return null
   return {
     ...db,
-    id: db.db_id || db.id
+    id: db.db_id || db.id,
+    document_count: db.row_count || 0  // Map row_count to document_count
   }
 }
 
@@ -270,6 +289,10 @@ const handleCreateDatabase = async (data) => {
 
 const handleUploadComplete = (file) => {
   showToast(`File "${file.name}" added to knowledge base`, 'success')
+  // Refresh document list
+  if (documentListRef.value) {
+    documentListRef.value.refresh()
+  }
 }
 
 const handleFileUploaded = (file) => {
@@ -278,6 +301,10 @@ const handleFileUploaded = (file) => {
 
 const handleUploadError = (file) => {
   showToast(`Failed to process "${file.name}": ${file.error || 'Unknown error'}`, 'error')
+}
+
+const handleDocumentDelete = (doc) => {
+  showToast(`Document "${doc.name}" deleted`, 'success')
 }
 
 const showToast = (message, type = 'success') => {
@@ -481,6 +508,8 @@ const showToast = (message, type = 'success') => {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
 .side-panel.empty {

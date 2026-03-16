@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
-    port: 5174,
+    port: 5173,
     allowedHosts: ['.natappfree.cc', '.natapp.cc'],
     historyApiFallback: true,
     proxy: {
@@ -13,7 +13,7 @@ export default defineConfig({
         target: 'http://localhost:8002',
         changeOrigin: true
       },
-      '/knowledge': {
+      '/knowledge/': {
         target: 'http://localhost:8002',
         changeOrigin: true
       },

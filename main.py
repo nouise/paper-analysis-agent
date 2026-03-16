@@ -134,6 +134,25 @@ class WeChatConvertReportRequest(BaseModel):
     theme: str = Field(default="tech", description="主题风格")
 
 
+class WeChatExportPDFRequest(BaseModel):
+    """微信导出 PDF 请求"""
+    title: str = Field(..., min_length=1, description="文章标题")
+    markdown_content: str = Field(..., min_length=1, description="Markdown 内容")
+    theme: str = Field(default="tech", description="主题风格")
+
+
+class ChatMessage(BaseModel):
+    """聊天消息"""
+    role: str = Field(..., description="角色: user/assistant")
+    content: str = Field(..., description="消息内容")
+
+
+class ChatRequest(BaseModel):
+    """聊天请求"""
+    messages: list[ChatMessage] = Field(..., description="消息列表")
+    stream: bool = Field(default=True, description="是否流式返回")
+
+
 # ============================================================
 # 健康检查
 # ============================================================
@@ -459,6 +478,165 @@ async def convert_report_to_wechat(data: WeChatConvertReportRequest):
     except Exception as e:
         logger.error(f"转换报告失败: {e}")
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
+
+
+@app.post('/api/wechat/export-pdf')
+async def export_to_pdf(data: WeChatExportPDFRequest):
+    """将 Markdown 导出为 PDF"""
+    try:
+        import asyncio
+        from playwright.async_api import async_playwright
+
+        # 首先转换为 HTML
+        html_content, _ = wechat_service.convert_markdown_to_html(
+            markdown_content=data.markdown_content,
+            theme=data.theme
+        )
+
+        # 添加打印样式
+        styled_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{data.title}</title>
+            <style>
+                @page {{
+                    margin: 20mm;
+                    size: A4;
+                }}
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 100%;
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+
+        # 生成 PDF
+        output_dir = Path("output/wechat")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        pdf_filename = f"{data.title.replace(' ', '_')}.pdf"
+        pdf_path = output_dir / pdf_filename
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.set_content(styled_html)
+            await page.pdf(
+                path=str(pdf_path),
+                format='A4',
+                margin={
+                    'top': '20mm',
+                    'bottom': '20mm',
+                    'left': '15mm',
+                    'right': '15mm'
+                },
+                print_background=True
+            )
+            await browser.close()
+
+        return {
+            "status": 200,
+            "msg": "PDF 导出成功",
+            "pdf_url": f"/output/wechat/{pdf_filename}",
+            "filename": pdf_filename
+        }
+
+    except ImportError:
+        logger.error("Playwright 未安装，无法导出 PDF")
+        raise HTTPException(
+            status_code=503,
+            detail="PDF 导出功能不可用，请安装 playwright: pip install playwright && playwright install chromium"
+        )
+    except Exception as e:
+        logger.error(f"PDF 导出失败: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF 导出失败: {str(e)}")
+
+
+# ============================================================
+# Chat API - AI 对话
+# ============================================================
+
+@app.post('/api/chat')
+async def chat_completion(request: ChatRequest):
+    """AI 对话接口 - 支持流式返回"""
+    try:
+        # 检查 API key
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="Chat service unavailable: DASHSCOPE_API_KEY not configured"
+            )
+
+        # 转换消息格式
+        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
+        if request.stream:
+            # 流式返回
+            async def generate_stream():
+                try:
+                    # 使用 OpenAI 客户端的流式接口
+                    from openai import AsyncOpenAI
+
+                    client = AsyncOpenAI(
+                        api_key=api_key,
+                        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    )
+
+                    response = await client.chat.completions.create(
+                        model="qwen-max",
+                        messages=messages,
+                        stream=True
+                    )
+
+                    async for chunk in response:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            # 返回标准 SSE 格式
+                            yield f"data: {json.dumps({'content': content})}\n\n"
+
+                    # 发送完成信号
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+
+                except Exception as e:
+                    logger.error(f"流式生成失败: {e}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+            return EventSourceResponse(generate_stream())
+        else:
+            # 非流式返回 - 直接使用 OpenAI 客户端
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(
+                api_key=api_key,
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+            )
+
+            response = await client.chat.completions.create(
+                model="qwen-max",
+                messages=messages,
+                stream=False
+            )
+
+            return {
+                "status": 200,
+                "content": response.choices[0].message.content,
+                "usage": response.usage.dict() if response.usage else None
+            }
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Chat API 失败: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"对话失败: {str(e)}")
 
 
 # ============================================================

@@ -3,6 +3,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 import Home from '../views/HomeView.vue'
 import KnowledgeBase from '../views/KnowledgeBase.vue'
 import History from '../views/History.vue'
+import WeChatEditor from '../views/WeChatEditor.vue'
 
 const routes = [
   {
@@ -34,6 +35,15 @@ const routes = [
         meta: {
           title: 'Knowledge Library',
           icon: '◆'
+        }
+      },
+      {
+        path: 'wechat',
+        name: 'WeChatEditor',
+        component: WeChatEditor,
+        meta: {
+          title: 'WeChat Publisher',
+          icon: '✎'
         }
       }
     ]

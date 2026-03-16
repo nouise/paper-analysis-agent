@@ -231,6 +231,9 @@
           </div>
           <div class="modal-footer">
             <button class="btn-secondary" @click="closeHtmlPreview">Close</button>
+            <button class="btn-primary" @click="publishToWechat" :disabled="isPublishing">
+              {{ isPublishing ? 'Publishing...' : 'Publish to WeChat' }}
+            </button>
           </div>
         </div>
       </div>
@@ -258,6 +261,7 @@ const showWechatModal = ref(false)
 const wechatTheme = ref('tech')
 const wechatAuthor = ref('Paper Agent')
 const isConverting = ref(false)
+const isPublishing = ref(false)
 const showHtmlPreview = ref(false)
 const previewHtmlContent = ref('')
 const currentHtmlPath = ref('')
@@ -389,6 +393,32 @@ const closeHtmlPreview = () => {
 
 const copyHtmlContent = () => {
   navigator.clipboard.writeText(previewHtmlContent.value)
+}
+
+const publishToWechat = async () => {
+  if (!selectedReport.value || !previewHtmlContent.value) return
+  isPublishing.value = true
+  try {
+    const res = await fetch('/api/wechat/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: selectedReport.value.title,
+        html_content: previewHtmlContent.value,
+        author: wechatAuthor.value,
+        digest: selectedReport.value.query
+      })
+    })
+    if (!res.ok) throw new Error('Publish failed')
+    const result = await res.json()
+    alert('Published to WeChat successfully!')
+    closeHtmlPreview()
+  } catch (error) {
+    console.error('Publish failed:', error)
+    alert('Failed to publish to WeChat: ' + error.message)
+  } finally {
+    isPublishing.value = false
+  }
 }
 
 onMounted(() => {

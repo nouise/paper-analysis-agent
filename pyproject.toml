@@ -36,6 +36,7 @@ volcengine-python-sdk = {extras = ["ark"], version = "^5.0.6"}
 pytest = "^9.0.2"
 markdown = "^3.10.2"
 cssutils = "^2.11.1"
+playwright = "^1.58.0"
 
 
 

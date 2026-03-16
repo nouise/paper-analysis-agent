@@ -24,8 +24,41 @@ from src.knowledge.knowledge.utils.kb_utils import (
 from src.utils.datetime_utils import utc_isoformat
 from src.utils.log_utils import setup_logger
 from src.core.config import config
+from openai import OpenAI
 
 logger = setup_logger(__name__)
+
+
+class DashScopeEmbeddingFunction:
+    """自定义 Embedding Function，支持手动批次控制"""
+
+    def __init__(self, api_key: str, api_base: str, model_name: str):
+        self.api_key = api_key
+        self.api_base = api_base
+        self.model_name = model_name
+        self.client = OpenAI(api_key=api_key, base_url=api_base)
+
+    def __call__(self, texts: List[str]) -> List[List[float]]:
+        """
+        分批计算 embedding，每批最多 10 个（DashScope 限制）
+        """
+        batch_size = 10
+        all_embeddings = []
+
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            try:
+                response = self.client.embeddings.create(
+                    model=self.model_name,
+                    input=batch
+                )
+                batch_embeddings = [item.embedding for item in response.data]
+                all_embeddings.extend(batch_embeddings)
+            except Exception as e:
+                logger.error(f"Error computing embeddings for batch {i//batch_size + 1}: {e}")
+                raise
+
+        return all_embeddings
 
 
 chroma_client = chromadb.Client()
@@ -79,7 +112,7 @@ class ChromaKB(KnowledgeBase):
         # 确保最终值为 {}（如果是 None 或不存在）
         embed_info = embed_info if embed_info is not None else {}
 
-        embedding_function = self._get_embedding_function(embed_info)
+        embedding_function = None  # 不使用 ChromaDB 的 embedding function，我们会手动预计算
 
         # 创建或获取集合
         collection_name = db_id
@@ -88,7 +121,8 @@ class ChromaKB(KnowledgeBase):
             # 尝试获取现有集合
             collection = self.chroma_client.get_collection(name=collection_name, embedding_function=embedding_function)
             logger.info(f"Retrieved existing collection: {collection_name}")
-
+            # 禁用 embedding function，因为我们手动预计算
+            collection._embedding_function = None
 
         except Exception:
             # 创建新集合
@@ -101,6 +135,8 @@ class ChromaKB(KnowledgeBase):
             collection = self.chroma_client.create_collection(
                 name=collection_name, embedding_function=embedding_function, metadata=collection_metadata
             )
+            # 禁用 embedding function，因为我们手动预计算
+            collection._embedding_function = None
             logger.info(f"Created new collection: {collection_name}")
 
         return collection
@@ -113,10 +149,10 @@ class ChromaKB(KnowledgeBase):
         """获取 embedding 函数"""
         config_dict = get_embedding_config(embed_info)
 
-        return OpenAIEmbeddingFunction(
-            model_name=config_dict["model"],
+        return DashScopeEmbeddingFunction(
             api_key=config_dict["api_key"],
             api_base=config_dict["base_url"].replace("/embeddings", ""),
+            model_name=config_dict["model"],
         )
 
     async def _get_chroma_collection(self, db_id: str):
@@ -375,6 +411,8 @@ class ChromaKB(KnowledgeBase):
         if not collection:
             raise ValueError(f"Failed to get ChromaDB collection for {db_id}")
 
+        # 禁用 embedding function，因为我们手动预计算
+        collection._embedding_function = None
         content_type = params.get("content_type", "file") if params else "file"
         processed_items_info = []
 
@@ -412,24 +450,47 @@ class ChromaKB(KnowledgeBase):
                     metadatas = [chunk["metadata"] for chunk in chunks]
                     ids = [chunk["id"] for chunk in chunks]
 
-                    # 插入到 ChromaDB - 分批处理以避免超出 OpenAI 批次大小限制
-                    batch_size = 64  # OpenAI 的最大批次大小限制
-                    total_batches = (len(chunks) + batch_size - 1) // batch_size
+                    # 预计算 embeddings（手动控制批次大小）
+                    embed_func = self._get_embedding_function(self.databases_meta[db_id].get("embed_info", {}))
+                    logger.info(f"Computing embeddings for {len(documents)} chunks using {type(embed_func).__name__}...")
 
-                    for i in range(0, len(chunks), batch_size):
-                        batch_documents = documents[i : i + batch_size]
-                        batch_metadatas = metadatas[i : i + batch_size]
-                        batch_ids = ids[i : i + batch_size]
+                    # 临时禁用 collection 的 embedding function
+                    original_ef = collection._embedding_function
+                    collection._embedding_function = None
+                    logger.info(f"Original embedding function: {type(original_ef).__name__ if original_ef else 'None'}")
 
-                        await asyncio.to_thread(
-                            collection.add,
-                            documents=batch_documents,
-                            metadatas=batch_metadatas,
-                            ids=batch_ids,
-                        )
+                    try:
+                        embeddings = embed_func(documents)
+                        logger.info(f"Successfully computed {len(embeddings)} embeddings")
+                    except Exception as e:
+                        logger.error(f"Failed to compute embeddings: {e}")
+                        collection._embedding_function = original_ef
+                        raise
 
-                        batch_num = i // batch_size + 1
-                        logger.info(f"Processed batch {batch_num}/{total_batches} for {filename}")
+                    # 插入到 ChromaDB - 使用预计算的 embeddings，极端分批（每批1个）
+                    batch_size = 1
+                    total_batches = len(chunks)
+
+                    try:
+                        for i in range(0, len(chunks), batch_size):
+                            batch_documents = documents[i : i + batch_size]
+                            batch_embeddings = embeddings[i : i + batch_size]
+                            batch_metadatas = metadatas[i : i + batch_size]
+                            batch_ids = ids[i : i + batch_size]
+
+                            await asyncio.to_thread(
+                                collection.add,
+                                embeddings=batch_embeddings,
+                                documents=batch_documents,
+                                metadatas=batch_metadatas,
+                                ids=batch_ids,
+                            )
+
+                            batch_num = i + 1
+                            logger.info(f"Processed batch {batch_num}/{total_batches} for {filename}")
+                    finally:
+                        # 恢复 embedding function
+                        collection._embedding_function = original_ef
 
                 logger.info(f"Inserted {content_type} {item} into ChromaDB. Done.")
 

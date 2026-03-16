@@ -1,49 +1,49 @@
 <template>
   <div class="query-test-container">
-    <div class="query-header">
-      <h3>知识库查询测试</h3>
-      <p class="query-hint" v-if="!selectedDatabaseId">请先选择一个知识库</p>
-    </div>
-    
     <div class="query-input-section">
       <textarea
         v-model="queryText"
-        placeholder="输入您的问题..."
+        :placeholder="selectedDatabaseId ? 'Enter your question...' : 'Select a knowledge base first'"
         rows="3"
         :disabled="!selectedDatabaseId || isQuerying"
         @keydown.ctrl.enter="handleQuery"
       ></textarea>
-      <button 
+      <button
         class="btn-query"
         @click="handleQuery"
         :disabled="!selectedDatabaseId || !queryText.trim() || isQuerying"
       >
-        {{ isQuerying ? '查询中...' : '查询' }}
+        <span v-if="isQuerying" class="spinner"></span>
+        {{ isQuerying ? 'Querying...' : 'Query' }}
       </button>
     </div>
-    
+
     <div class="query-results" v-if="queryResults.length > 0 || queryError">
       <div v-if="queryError" class="error-message">
-        <span class="error-icon">⚠️</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
         {{ queryError }}
       </div>
-      
+
       <div v-else class="results-list">
-        <div 
-          v-for="(result, index) in queryResults" 
+        <div
+          v-for="(result, index) in queryResults"
           :key="index"
           class="result-item"
         >
           <div class="result-header">
             <span class="result-index">#{{ index + 1 }}</span>
-            <span class="result-score">相似度: {{ formatScore(result.score) }}</span>
+            <span class="result-score">Similarity: {{ formatScore(result.score) }}</span>
           </div>
           <div class="result-content">
             {{ result.content }}
           </div>
-          <div class="result-meta" v-if="result.metadata">
-            <div 
-              v-for="(value, key) in result.metadata" 
+          <div class="result-meta" v-if="result.metadata && Object.keys(result.metadata).length > 0">
+            <div
+              v-for="(value, key) in result.metadata"
               :key="key"
               class="meta-item"
             >
@@ -54,16 +54,21 @@
         </div>
       </div>
     </div>
-    
+
     <div class="empty-state" v-else-if="hasQueried && !isQuerying">
-      <div class="empty-icon">🔍</div>
-      <p>暂无查询结果</p>
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <p>No results found</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { knowledgeApi } from '../api/knowledge'
 
 const props = defineProps({
@@ -83,26 +88,26 @@ const handleQuery = async () => {
   if (!props.selectedDatabaseId || !queryText.value.trim()) {
     return
   }
-  
+
   isQuerying.value = true
   queryError.value = ''
   queryResults.value = []
-  
+
   try {
     const response = await knowledgeApi.queryDatabase(
       props.selectedDatabaseId,
       queryText.value,
       {}
     )
-    
+
     if (response.data.status === 'success') {
       queryResults.value = response.data.result || []
     } else {
-      queryError.value = response.data.message || '查询失败'
+      queryError.value = response.data.message || 'Query failed'
     }
   } catch (error) {
-    console.error('查询失败:', error)
-    queryError.value = error.response?.data?.detail || error.message || '查询失败，请稍后重试'
+    console.error('Query failed:', error)
+    queryError.value = error.response?.data?.detail || error.message || 'Query failed, please try again'
   } finally {
     isQuerying.value = false
     hasQueried.value = true
@@ -127,75 +132,82 @@ defineExpose({
 
 <style scoped>
 .query-test-container {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.query-header {
-  margin-bottom: 20px;
-}
-
-.query-header h3 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.query-hint {
-  margin: 0;
-  font-size: 14px;
-  color: #e74c3c;
+  width: 100%;
 }
 
 .query-input-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .query-input-section textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ced4da;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
   font-family: inherit;
   resize: vertical;
-  margin-bottom: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: var(--space-3);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .query-input-section textarea:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
 }
 
 .query-input-section textarea:disabled {
-  background: #f8f9fa;
+  background: var(--color-bg-elevated);
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.query-input-section textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 .btn-query {
-  padding: 10px 24px;
-  background: #3498db;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  color: var(--color-bg-primary);
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .btn-query:hover:not(:disabled) {
-  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
 }
 
 .btn-query:disabled {
-  background: #bdc3c7;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
   cursor: not-allowed;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .query-results {
@@ -206,114 +218,135 @@ defineExpose({
 .error-message {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: #f8d7da;
-  color: #dc3545;
-  border-radius: 6px;
-  font-size: 14px;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
 }
 
-.error-icon {
-  font-size: 18px;
+.error-message svg {
+  width: 18px;
+  height: 18px);
+  flex-shrink: 0;
 }
 
 .results-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-3);
 }
 
 .result-item {
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 16px;
-  background: #f8f9fa;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  transition: border-color var(--transition-fast);
+}
+
+.result-item:hover {
+  border-color: var(--color-border-hover);
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .result-index {
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: #3498db;
+  color: var(--color-accent-primary);
 }
 
 .result-score {
-  font-size: 13px;
-  color: #6c757d;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
 }
 
 .result-content {
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.6;
-  color: #2c3e50;
-  margin-bottom: 12px;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
   white-space: pre-wrap;
 }
 
 .result-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e9ecef;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
 .meta-item {
-  font-size: 12px;
+  font-size: var(--text-xs);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
+  background: var(--color-bg-elevated);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
 }
 
 .meta-label {
-  color: #6c757d;
+  color: var(--color-text-muted);
 }
 
 .meta-value {
-  color: #495057;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
-  color: #6c757d;
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-muted);
 }
 
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.empty-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .empty-state p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
+/* Scrollbar styling */
 .query-results::-webkit-scrollbar {
   width: 6px;
 }
 
 .query-results::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
 }
 
 .query-results::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 10px;
+  background: var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .query-results::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: var(--color-text-muted);
 }
 </style>

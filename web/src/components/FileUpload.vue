@@ -83,7 +83,7 @@
               Failed
             </span>
             <button
-              v-else-if="file.status === 'uploaded'"
+              v-if="file.status === 'uploaded'"
               class="add-btn"
               @click.stop="addToKnowledgeBase(file)"
             >
@@ -226,6 +226,18 @@ const uploadFile = async (item) => {
 
 const clearQueue = () => {
   uploadQueue.value = []
+}
+
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let size = bytes
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex++
+  }
+  return `${size.toFixed(1)} ${units[unitIndex]}`
 }
 
 const addToKnowledgeBase = async (item) => {

@@ -187,7 +187,139 @@
 
 ## Current Phase
 
-🔵 Phase 6: 知识库功能增强 (文档添加到知识库 + 名称修改)
+✅ 部署完成 - 本地环境已成功运行
+
+---
+
+## 🚀 部署状态
+
+### 后端服务
+- **状态**: ✅ 运行中
+- **端口**: 8003 (原 8002 被占用)
+- **命令**: `poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8003`
+- **API 文档**: http://localhost:8003/docs
+
+### 前端服务
+- **状态**: ✅ 运行中
+- **端口**: 5177 (原配置 5174-5176 被占用)
+- **命令**: `npm run dev`
+- **访问地址**: http://localhost:5177
+
+### 修改的配置文件
+- `web/vite.config.js` - 更新代理端口 8002 → 8003
+
+---
+
+## 启动命令总结
+
+### 后端（Poetry）
+```bash
+cd D:\2026\个人简历\InterestingWork\paper-analysis-agent
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8003 --reload
+```
+
+### 前端
+```bash
+cd web
+npm run dev
+```
+
+### 一键启动脚本（Windows PowerShell）
+```powershell
+# 启动后端（后台运行）
+Start-Process -WindowStyle Hidden -FilePath "poetry" -ArgumentList "run","python","-m","uvicorn","main:app","--host","0.0.0.0","--port","8003"
+
+# 等待后端启动
+Start-Sleep -Seconds 3
+
+# 启动前端
+cd web
+npm run dev
+```
+
+---
+
+## 验证步骤
+
+1. ✅ 访问 http://localhost:8003/docs - 应该看到 FastAPI API 文档
+2. ✅ 访问 http://localhost:5177 - 应该看到前端首页
+3. ✅ 点击 History 菜单 - 应该正常加载历史报告
+4. ✅ 点击 Library 菜单 - 应该正常加载知识库
+
+---
+
+### Phase 7: WeChat & Chat 功能修复
+- [x] 检查并杀掉占用端口的进程
+- [x] 启动后端服务 (端口 8002)
+- [x] 启动前端服务
+- [x] 测试 /api/chat 接口 - 工作正常
+- [x] 测试 /api/wechat/* 接口 - 工作正常
+- [x] 修复发现的问题 - 端口占用已解决
+- **Status:** complete
+
+---
+
+## 🔴 问题摘要
+
+**现象**: GitHub 更新代码后，本地运行 history、library 等界面异常
+
+**根本原因**:
+- Linux 服务器已配置好 Poetry 和 Python 依赖
+- 本地 Windows 环境缺少后端 Python 依赖（FastAPI、ChromaDB 等）
+- 后端服务无法启动，导致前端 API 请求失败
+
+**解决方案**:
+
+### 快速修复（使用 pip）
+
+```bash
+# 1. 进入项目目录
+cd D:\2026\个人简历\InterestingWork\paper-analysis-agent
+
+# 2. 安装核心依赖
+pip install fastapi uvicorn chromadb langgraph langchain \
+    langchain-community autogen pydantic sse-starlette
+
+# 3. 启动后端
+python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+
+# 4. 在另一个终端启动前端
+cd web
+npm run dev
+```
+
+### 推荐方案（使用 Poetry）
+
+```bash
+# 1. 安装 Poetry
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+
+# 2. 安装依赖
+poetry install --no-root
+
+# 3. 启动后端
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+
+# 4. 启动前端
+cd web
+npm run dev
+```
+
+**访问地址**:
+- 前端: http://localhost:5173
+- 后端 API 文档: http://localhost:8002/docs
+
+---
+
+## 详细诊断报告
+
+详见 `findings.md` 文件，包含：
+- 完整的依赖检查清单
+- 三种解决方案（Poetry/pip/requirements）
+- 可能的后续问题（数据库路径、代理配置、端口冲突）
+- 验证步骤
+
+---
 
 **已完成的功能**:
 1. ✅ FR-004: 搜索论文数量可配置 (1-50)

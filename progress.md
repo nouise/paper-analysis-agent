@@ -1,11 +1,53 @@
 # Progress Log - Paper Analysis Agent 功能完善
 
 **项目**: Paper Analysis Agent
-**会话开始**: 2026-03-11
+**会话开始**: 2026-03-16
 
 ---
 
 ## Session Log
+
+### 2026-03-16 - WeChat & Chat 功能修复
+
+**Action**: 清理端口并重新启动服务
+
+**Status**: ✅ 服务运行正常
+
+**Ports**:
+- 后端: http://localhost:8002 (PID 26108)
+- 前端: http://localhost:5173
+
+**API 测试结果**:
+- ✅ `/api/chat` - 返回 200，AI 对话正常
+- ✅ `/api/wechat/convert` - 返回 200，Markdown 转 HTML 正常
+
+**启动命令**:
+```bash
+# 后端
+poetry run python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+
+# 前端
+cd web && npm run dev
+```
+
+---
+
+### 2026-03-16 - 服务启动
+
+**Action**: 清理旧端口并启动最新版本
+
+**Ports**:
+- 后端: http://localhost:8002 (PID 10152)
+- 前端: http://localhost:5173 (PID 13628)
+
+**Status**: ✅ 运行正常
+- 后端健康检查: `{"status":"healthy",...}`
+- 前端状态码: 200
+
+**Configuration**:
+- 更新 `web/vite.config.js` 端口 5174 → 5173
+
+---
 
 ### 2026-03-11 - Bug 修复
 
